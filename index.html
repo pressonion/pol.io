@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>4-Player Sword Arena - Minimap & Fixes</title>
+  <title>4-Player Sword Arena - Particle Update</title>
   <style>
     body { margin: 0; background: #222; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; overflow: hidden; height: 100vh; justify-content: center; user-select: none; }
     canvas { border: 2px solid #555; background: #333; cursor: crosshair; }
@@ -23,7 +23,7 @@
     </div>
     <p id="status">Status: Waiting...</p>
     <div id="scores"></div>
-    <p><b>WASD:</b> Move | <b>SPACE:</b> Dash | <b>CLICK:</b> Swing (Aims at Mouse)</p>
+    <p><b>WASD:</b> Move | <b>SPACE:</b> Dash | <b>CLICK:</b> Swing</p>
   </div>
 
   <canvas id="gameCanvas" width="800" height="600"></canvas>
@@ -59,9 +59,10 @@
     let clientConns = []; 
     let myPlayerId = 0; 
     
-    let gameState = { players: {} };
+    // Master game state includes a new array for particles
+    let gameState = { players: {}, particles: [] };
     let lastNetTime = 0; 
-    let lastClientTime = 0; // FIX: Added throttle timer for clients
+    let lastClientTime = 0; 
 
     // Input tracking
     const keys = {};
@@ -83,12 +84,8 @@
     function getMouseDir() {
       let dx = mouseX - (canvas.width / 2);
       let dy = mouseY - (canvas.height / 2);
-      
-      if (Math.abs(dx) > Math.abs(dy)) {
-        return dx > 0 ? "right" : "left";
-      } else {
-        return dy > 0 ? "down" : "up";
-      }
+      if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
+      return dy > 0 ? "down" : "up";
     }
 
     // --- NETWORKING LOGIC ---
@@ -141,10 +138,25 @@
       gameState.players[id] = {
         x: Math.random() * (WORLD_SIZE - 100) + 50,
         y: Math.random() * (WORLD_SIZE - 100) + 50,
-        color: COLORS[id], score: 0, dir: "right", mouseDir: "right",
+        color: COLORS[id], score: 0, hp: 100, // Added HP
+        dir: "right", mouseDir: "right",
         swingTimer: 0, dashTimer: 0, dashCooldown: 0,
         keys: {}, wantsAttack: false
       };
+    }
+
+    // --- PARTICLE LOGIC (HOST ONLY) ---
+    function spawnParticles(x, y, color, amount) {
+      for(let i=0; i<amount; i++) {
+        gameState.particles.push({
+          x: x, y: y,
+          vx: (Math.random() - 0.5) * 12,
+          vy: (Math.random() - 0.5) * 12,
+          color: color,
+          life: 20 + Math.random() * 20,
+          maxLife: 40
+        });
+      }
     }
 
     // --- GAME LOGIC (HOST ONLY) ---
@@ -157,8 +169,15 @@
         gameState.players[0].mouseDir = getMouseDir();
       }
 
+      // Update Particles
+      for (let i = gameState.particles.length - 1; i >= 0; i--) {
+        let pt = gameState.particles[i];
+        pt.x += pt.vx; pt.y += pt.vy; 
+        pt.life--;
+        if (pt.life <= 0) gameState.particles.splice(i, 1);
+      }
+
       const playerIds = Object.keys(gameState.players);
-      
       playerIds.forEach(id => {
         let p = gameState.players[id];
         let pKeys = p.keys;
@@ -171,9 +190,12 @@
           p.dashTimer = 10;
           p.dashCooldown = 60; 
         }
+        
         if (p.dashTimer > 0) {
           currentSpeed = DASH_SPEED;
           p.dashTimer--;
+          // Spawn dash trail particles
+          spawnParticles(p.x + P_SIZE/2, p.y + P_SIZE/2, "#fff", 1);
         }
 
         if (pKeys["KeyW"] || pKeys["ArrowUp"]) p.y -= currentSpeed; 
@@ -195,17 +217,28 @@
               let t = gameState.players[targetId];
               if (swordRect.x < t.x + P_SIZE && swordRect.x + swordRect.w > t.x &&
                   swordRect.y < t.y + P_SIZE && swordRect.y + swordRect.h > t.y) {
-                p.score += 1;
-                t.x = Math.random() * (WORLD_SIZE - 100) + 50;
-                t.y = Math.random() * (WORLD_SIZE - 100) + 50;
+                
+                t.hp -= 25; // 4 Hits to eliminate
+                if (t.hp <= 0) {
+                  p.score += 1;
+                  t.hp = 100;
+                  // Death Explosion!
+                  spawnParticles(t.x + P_SIZE/2, t.y + P_SIZE/2, t.color, 40);
+                  t.x = Math.random() * (WORLD_SIZE - 100) + 50;
+                  t.y = Math.random() * (WORLD_SIZE - 100) + 50;
+                } else {
+                  // Hit Sparks
+                  spawnParticles(t.x + P_SIZE/2, t.y + P_SIZE/2, "#ffea00", 10);
+                }
               }
             }
           });
         }
       });
 
+      // UPGRADED TO 60 FPS NETWORK SPEED (~16ms throttle)
       let now = Date.now();
-      if (now - lastNetTime > 33) {
+      if (now - lastNetTime > 16) {
         clientConns.forEach(conn => { if (conn.open) conn.send({ type: "state", state: gameState }); });
         lastNetTime = now;
       }
@@ -242,6 +275,7 @@
       ctx.save();
       ctx.translate(-camX, -camY);
 
+      // Draw Grid
       ctx.strokeStyle = "#444";
       for(let i=0; i<WORLD_SIZE; i+=100){
         ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,WORLD_SIZE); ctx.stroke();
@@ -250,15 +284,39 @@
       ctx.strokeStyle = "#fff";
       ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-      Object.values(gameState.players).forEach(p => {
-        if (p.dashTimer > 0) {
-          ctx.fillStyle = p.color + "88"; 
-          ctx.fillRect(p.x, p.y, P_SIZE, P_SIZE); 
-        }
+      // Draw Particles
+      if (gameState.particles) {
+        gameState.particles.forEach(pt => {
+          ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
+          ctx.fillStyle = pt.color;
+          ctx.fillRect(pt.x, pt.y, 6, 6);
+        });
+        ctx.globalAlpha = 1.0; // Reset transparency
+      }
 
+      // Draw Players, Swords, Health, and Dash UI
+      Object.values(gameState.players).forEach(p => {
         ctx.fillStyle = p.color;
         ctx.fillRect(p.x, p.y, P_SIZE, P_SIZE);
 
+        // Draw Health Bar
+        ctx.fillStyle = "#ff0000";
+        ctx.fillRect(p.x, p.y - 12, P_SIZE, 6);
+        ctx.fillStyle = "#00ff00";
+        ctx.fillRect(p.x, p.y - 12, P_SIZE * (p.hp / 100), 6);
+
+        // Draw Dash Cooldown Bar
+        ctx.fillStyle = "#333";
+        ctx.fillRect(p.x, p.y + P_SIZE + 4, P_SIZE, 4);
+        if (p.dashCooldown > 0) {
+          ctx.fillStyle = "#00ffff";
+          ctx.fillRect(p.x, p.y + P_SIZE + 4, P_SIZE * (1 - (p.dashCooldown / 60)), 4);
+        } else {
+          ctx.fillStyle = "#00ffff";
+          ctx.fillRect(p.x, p.y + P_SIZE + 4, P_SIZE, 4);
+        }
+
+        // Draw Sword
         if (p.swingTimer > 5) {
           ctx.fillStyle = "#fff";
           let s = getSwordRect(p);
@@ -268,7 +326,7 @@
 
       ctx.restore();
 
-      // --- MINIMAP (RESTORED!) ---
+      // Draw Minimap
       const mapSize = 120;
       const mapX = canvas.width - mapSize - 10;
       const mapY = canvas.height - mapSize - 10;
@@ -291,9 +349,9 @@
       if (isHost) {
         updatePhysics();
       } else if (hostConn && hostConn.open) {
-        // FIX: Throttled client inputs so it stops flooding/freezing the connection!
+        // UPGRADED TO 60 FPS NETWORK SPEED (~16ms throttle)
         let now = Date.now();
-        if (now - lastClientTime > 33) {
+        if (now - lastClientTime > 16) {
           hostConn.send({ type: "input", keys: { ...keys }, attack: isAttacking, mouseDir: getMouseDir() });
           lastClientTime = now;
         }
