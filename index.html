@@ -1,1 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>4-Player Sword Arena - Minimap & Fixes</title>
+  <style>
+    body { margin: 0; background: #222; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; overflow: hidden; height: 100vh; justify-content: center; user-select: none; }
+    canvas { border: 2px solid #555; background: #333; cursor: crosshair; }
+    #ui { position: absolute; top: 10px; text-align: center; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; z-index: 10; }
+    input, button { padding: 6px; font-size: 14px; margin: 2px; }
+    #scores { margin-top: 5px; font-weight: bold; color: #ffcc00; }
+    p { margin: 5px 0 0 0; font-size: 13px; }
+  </style>
+</head>
+<body>
 
+  <div id="ui">
+    <div id="menu">
+      <button id="host-btn">1. Host Game (Create Code)</button>
+      <span> OR </span>
+      <input type="text" id="join-id" placeholder="Paste 5-Letter Code" maxlength="5" style="text-transform:uppercase" />
+      <button id="join-btn">2. Join Game</button>
+    </div>
+    <p id="status">Status: Waiting...</p>
+    <div id="scores"></div>
+    <p><b>WASD:</b> Move | <b>SPACE:</b> Dash | <b>CLICK:</b> Swing (Aims at Mouse)</p>
+  </div>
+
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const statusTxt = document.getElementById("status");
+    const scoresTxt = document.getElementById("scores");
+
+    // Game Constants
+    const WORLD_SIZE = 1500;
+    const P_SIZE = 30;
+    const SPEED = 5;
+    const DASH_SPEED = 15;
+    const SWORD_LEN = 40;
+    const COLORS = ["#00ffcc", "#ff0055", "#ffaa00", "#aa00ff"]; 
+
+    // Network Setup
+    const shortCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+    let peer = new Peer(shortCode, { 
+      config: { 
+        'iceServers': [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:global.stun.twilio.com:3478' }
+        ] 
+      } 
+    });
+
+    let isHost = false;
+    let hostConn = null; 
+    let clientConns = []; 
+    let myPlayerId = 0; 
+    
+    let gameState = { players: {} };
+    let lastNetTime = 0; 
+    let lastClientTime = 0; // FIX: Added throttle timer for clients
+
+    // Input tracking
+    const keys = {};
+    let isAttacking = false;
+    let mouseX = 0;
+    let mouseY = 0;
+
+    window.addEventListener("keydown", (e) => keys[e.code] = true);
+    window.addEventListener("keyup", (e) => keys[e.code] = false);
+    canvas.addEventListener("mousedown", () => isAttacking = true);
+    canvas.addEventListener("mouseup", () => isAttacking = false);
+    
+    canvas.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+    });
+
+    function getMouseDir() {
+      let dx = mouseX - (canvas.width / 2);
+      let dy = mouseY - (canvas.height / 2);
+      
+      if (Math.abs(dx) > Math.abs(dy)) {
+        return dx > 0 ? "right" : "left";
+      } else {
+        return dy > 0 ? "down" : "up";
+      }
+    }
+
+    // --- NETWORKING LOGIC ---
+    document.getElementById("host-btn").onclick = () => {
+      isHost = true;
+      document.getElementById("menu").style.display = "none";
+      statusTxt.innerText = "Status: HOSTING. Your Code: " + shortCode;
+      
+      addPlayerToGame(0);
+      myPlayerId = 0;
+
+      peer.on("connection", (conn) => {
+        if (clientConns.length >= 3) { conn.close(); return; } 
+        
+        const newPlayerId = clientConns.length + 1;
+        clientConns.push(conn);
+        addPlayerToGame(newPlayerId);
+
+        conn.on("open", () => {
+          conn.send({ type: "init", id: newPlayerId });
+          conn.send({ type: "state", state: gameState });
+        });
+
+        conn.on("data", (data) => {
+          if (data.type === "input" && gameState.players[newPlayerId]) {
+            gameState.players[newPlayerId].keys = data.keys;
+            gameState.players[newPlayerId].wantsAttack = data.attack;
+            if (data.mouseDir) gameState.players[newPlayerId].mouseDir = data.mouseDir;
+          }
+        });
+      });
+    };
+
+    document.getElementById("join-btn").onclick = () => {
+      const hostId = document.getElementById("join-id").value.trim().toUpperCase();
+      if (!hostId) return;
+      
+      document.getElementById("menu").style.display = "none";
+      statusTxt.innerText = "Connecting...";
+      
+      hostConn = peer.connect(hostId);
+      hostConn.on("open", () => statusTxt.innerText = "CONNECTED!");
+      hostConn.on("data", (data) => {
+        if (data.type === "init") myPlayerId = data.id;
+        else if (data.type === "state") gameState = data.state; 
+      });
+    };
+
+    function addPlayerToGame(id) {
+      gameState.players[id] = {
+        x: Math.random() * (WORLD_SIZE - 100) + 50,
+        y: Math.random() * (WORLD_SIZE - 100) + 50,
+        color: COLORS[id], score: 0, dir: "right", mouseDir: "right",
+        swingTimer: 0, dashTimer: 0, dashCooldown: 0,
+        keys: {}, wantsAttack: false
+      };
+    }
+
+    // --- GAME LOGIC (HOST ONLY) ---
+    function updatePhysics() {
+      if (!isHost) return;
+
+      if (gameState.players[0]) {
+        gameState.players[0].keys = keys;
+        gameState.players[0].wantsAttack = isAttacking;
+        gameState.players[0].mouseDir = getMouseDir();
+      }
+
+      const playerIds = Object.keys(gameState.players);
+      
+      playerIds.forEach(id => {
+        let p = gameState.players[id];
+        let pKeys = p.keys;
+        
+        if (p.dashCooldown > 0) p.dashCooldown--;
+        if (p.swingTimer > 0) p.swingTimer--;
+
+        let currentSpeed = SPEED;
+        if (pKeys["Space"] && p.dashCooldown === 0) {
+          p.dashTimer = 10;
+          p.dashCooldown = 60; 
+        }
+        if (p.dashTimer > 0) {
+          currentSpeed = DASH_SPEED;
+          p.dashTimer--;
+        }
+
+        if (pKeys["KeyW"] || pKeys["ArrowUp"]) p.y -= currentSpeed; 
+        if (pKeys["KeyS"] || pKeys["ArrowDown"]) p.y += currentSpeed; 
+        if (pKeys["KeyA"] || pKeys["ArrowLeft"]) p.x -= currentSpeed; 
+        if (pKeys["KeyD"] || pKeys["ArrowRight"]) p.x += currentSpeed; 
+
+        p.x = Math.max(0, Math.min(WORLD_SIZE - P_SIZE, p.x));
+        p.y = Math.max(0, Math.min(WORLD_SIZE - P_SIZE, p.y));
+
+        if (p.wantsAttack && p.swingTimer === 0 && p.dashTimer <= 0) {
+          p.dir = p.mouseDir;
+          p.swingTimer = 15; 
+          
+          let swordRect = getSwordRect(p);
+
+          playerIds.forEach(targetId => {
+            if (id !== targetId) {
+              let t = gameState.players[targetId];
+              if (swordRect.x < t.x + P_SIZE && swordRect.x + swordRect.w > t.x &&
+                  swordRect.y < t.y + P_SIZE && swordRect.y + swordRect.h > t.y) {
+                p.score += 1;
+                t.x = Math.random() * (WORLD_SIZE - 100) + 50;
+                t.y = Math.random() * (WORLD_SIZE - 100) + 50;
+              }
+            }
+          });
+        }
+      });
+
+      let now = Date.now();
+      if (now - lastNetTime > 33) {
+        clientConns.forEach(conn => { if (conn.open) conn.send({ type: "state", state: gameState }); });
+        lastNetTime = now;
+      }
+      
+      updateScoreboard();
+    }
+
+    function getSwordRect(p) {
+      if (p.dir === "up") return { x: p.x + P_SIZE/2 - 5, y: p.y - SWORD_LEN, w: 10, h: SWORD_LEN };
+      if (p.dir === "down") return { x: p.x + P_SIZE/2 - 5, y: p.y + P_SIZE, w: 10, h: SWORD_LEN };
+      if (p.dir === "left") return { x: p.x - SWORD_LEN, y: p.y + P_SIZE/2 - 5, w: SWORD_LEN, h: 10 };
+      if (p.dir === "right") return { x: p.x + P_SIZE, y: p.y + P_SIZE/2 - 5, w: SWORD_LEN, h: 10 };
+      return { x: 0, y: 0, w: 0, h: 0 };
+    }
+
+    function updateScoreboard() {
+      let txt = "";
+      Object.keys(gameState.players).forEach(id => {
+        txt += `<span style="color:${COLORS[id]}">Player ${parseInt(id)+1}: ${gameState.players[id].score}</span> | `;
+      });
+      scoresTxt.innerHTML = txt.slice(0, -2);
+    }
+
+    // --- DRAWING LOGIC ---
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      let myP = gameState.players[myPlayerId];
+      if (!myP) return;
+
+      let camX = myP.x - canvas.width / 2 + P_SIZE / 2;
+      let camY = myP.y - canvas.height / 2 + P_SIZE / 2;
+
+      ctx.save();
+      ctx.translate(-camX, -camY);
+
+      ctx.strokeStyle = "#444";
+      for(let i=0; i<WORLD_SIZE; i+=100){
+        ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,WORLD_SIZE); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(WORLD_SIZE,i); ctx.stroke();
+      }
+      ctx.strokeStyle = "#fff";
+      ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
+      Object.values(gameState.players).forEach(p => {
+        if (p.dashTimer > 0) {
+          ctx.fillStyle = p.color + "88"; 
+          ctx.fillRect(p.x, p.y, P_SIZE, P_SIZE); 
+        }
+
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, P_SIZE, P_SIZE);
+
+        if (p.swingTimer > 5) {
+          ctx.fillStyle = "#fff";
+          let s = getSwordRect(p);
+          ctx.fillRect(s.x, s.y, s.w, s.h);
+        }
+      });
+
+      ctx.restore();
+
+      // --- MINIMAP (RESTORED!) ---
+      const mapSize = 120;
+      const mapX = canvas.width - mapSize - 10;
+      const mapY = canvas.height - mapSize - 10;
+      
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(mapX, mapY, mapSize, mapSize);
+      ctx.strokeStyle = "#fff"; 
+      ctx.lineWidth = 2;
+      ctx.strokeRect(mapX, mapY, mapSize, mapSize);
+
+      Object.values(gameState.players).forEach(p => {
+        let miniX = mapX + (p.x / WORLD_SIZE) * mapSize;
+        let miniY = mapY + (p.y / WORLD_SIZE) * mapSize;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(miniX, miniY, 4, 4);
+      });
+    }
+
+    function loop() {
+      if (isHost) {
+        updatePhysics();
+      } else if (hostConn && hostConn.open) {
+        // FIX: Throttled client inputs so it stops flooding/freezing the connection!
+        let now = Date.now();
+        if (now - lastClientTime > 33) {
+          hostConn.send({ type: "input", keys: { ...keys }, attack: isAttacking, mouseDir: getMouseDir() });
+          lastClientTime = now;
+        }
+        updateScoreboard();
+      }
+      
+      draw();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
