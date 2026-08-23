@@ -2,84 +2,97 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>4-Player Sword Arena - Particle Update</title>
+  <title>4-Player Custom Class Arena</title>
   <style>
-    body { margin: 0; background: #222; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; overflow: hidden; height: 100vh; justify-content: center; user-select: none; }
-    canvas { border: 2px solid #555; background: #333; cursor: crosshair; }
-    #ui { position: absolute; top: 10px; text-align: center; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; z-index: 10; }
-    input, button { padding: 6px; font-size: 14px; margin: 2px; }
+    body { margin: 0; background: #222; color: #fff; font-family: sans-serif; overflow: hidden; user-select: none; }
+    canvas { border: 2px solid #555; background: #333; cursor: crosshair; display: block; margin: 0 auto; }
+    
+    #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    #menu-container { pointer-events: auto; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); text-align: center; background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 8px; z-index: 10; }
+    
+    input, button { padding: 8px; font-size: 14px; margin: 2px; cursor: pointer; }
     #scores { margin-top: 5px; font-weight: bold; color: #ffcc00; }
     p { margin: 5px 0 0 0; font-size: 13px; }
+
+    #hud { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); text-align: center; width: 400px; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px; display: none; }
+    #xp-bar-bg { width: 100%; height: 20px; background: #444; border-radius: 10px; overflow: hidden; margin-top: 5px; border: 2px solid #222; }
+    #xp-bar-fill { height: 100%; background: #ffcc00; width: 0%; transition: width 0.2s; }
+    #level-txt { font-weight: bold; font-size: 18px; margin: 0; }
+
+    #upgrade-menu { pointer-events: auto; position: absolute; top: 20%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 20px; border-radius: 10px; border: 2px solid #fff; display: none; text-align: center; }
+    .upg-btn { display: block; width: 200px; margin: 10px auto; padding: 10px; font-size: 16px; font-weight: bold; border: none; border-radius: 5px; }
+    #btn-guardian { background: #00aa00; color: white; }
+    #btn-duelist { background: #00ffff; color: black; }
+    #btn-berserker { background: #ff0000; color: white; }
+    #btn-warden { background: #ffff00; color: black; }
   </style>
 </head>
 <body>
 
-  <div id="ui">
-    <div id="menu">
-      <button id="host-btn">1. Host Game (Create Code)</button>
-      <span> OR </span>
-      <input type="text" id="join-id" placeholder="Paste 5-Letter Code" maxlength="5" style="text-transform:uppercase" />
-      <button id="join-btn">2. Join Game</button>
+  <div id="ui-layer">
+    <div id="menu-container">
+      <div id="menu">
+        <button id="host-btn">1. Host Game</button>
+        <span> OR </span>
+        <input type="text" id="join-id" placeholder="5-Letter Code" maxlength="5" style="text-transform:uppercase; width: 100px;" />
+        <button id="join-btn">2. Join Game</button>
+      </div>
+      <p id="status">Status: Waiting...</p>
+      <div id="scores"></div>
     </div>
-    <p id="status">Status: Waiting...</p>
-    <div id="scores"></div>
-    <p><b>WASD:</b> Move | <b>SPACE:</b> Dash | <b>CLICK:</b> Swing</p>
+
+    <div id="upgrade-menu">
+      <h2>Level 5 Reached!</h2>
+      <p>Choose your path:</p>
+      <button class="upg-btn" id="btn-guardian">The Guardian (Defense)</button>
+      <button class="upg-btn" id="btn-duelist">The Duelist (Speed)</button>
+      <button class="upg-btn" id="btn-berserker">The Berserker (Power)</button>
+      <button class="upg-btn" id="btn-warden">The Warden (Traps)</button>
+    </div>
+
+    <div id="hud">
+      <p id="level-txt">Level 1 - Squire</p>
+      <div id="xp-bar-bg"><div id="xp-bar-fill"></div></div>
+    </div>
   </div>
 
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <canvas id="gameCanvas" width="1000" height="700"></canvas>
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    const statusTxt = document.getElementById("status");
-    const scoresTxt = document.getElementById("scores");
+    
+    // Fit canvas to screen
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
 
     // Game Constants
-    const WORLD_SIZE = 1500;
+    const WORLD_SIZE = 2000;
     const P_SIZE = 30;
-    const SPEED = 5;
-    const DASH_SPEED = 15;
-    const SWORD_LEN = 40;
-    const COLORS = ["#00ffcc", "#ff0055", "#ffaa00", "#aa00ff"]; 
+    const COLORS = ["#3366ff", "#ff0055", "#ffaa00", "#aa00ff"]; 
 
-    // Network Setup
-    const shortCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-    let peer = new Peer(shortCode, { 
-      config: { 
-        'iceServers': [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' }
-        ] 
-      } 
-    });
+    // Class Stats Definitions
+    const CLASSES = {
+      "Squire": { speed: 5, dash: 15, swingTicks: 15, cooldown: 60, color: "#fff" },
+      "Guardian": { speed: 3.5, dash: 10, swingTicks: 20, cooldown: 60, color: "#00ff00" },
+      "Duelist": { speed: 7, dash: 20, swingTicks: 10, cooldown: 40, color: "#00ffff" },
+      "Berserker": { speed: 3.5, dash: 12, swingTicks: 25, cooldown: 80, color: "#ff0000" },
+      "Warden": { speed: 5, dash: 15, swingTicks: 15, cooldown: 60, color: "#ffff00" }
+    };
 
-    let isHost = false;
-    let hostConn = null; 
-    let clientConns = []; 
-    let myPlayerId = 0; 
-    
-    // Master game state includes a new array for particles
-    let gameState = { players: {}, particles: [] };
-    let lastNetTime = 0; 
-    let lastClientTime = 0; 
-
-    // Input tracking
-    const keys = {};
-    let isAttacking = false;
-    let mouseX = 0;
-    let mouseY = 0;
+    let peer = new Peer(Math.random().toString(36).substring(2, 7).toUpperCase(), { config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }] } });
+    let isHost = false, hostConn = null, clientConns = [], myPlayerId = 0; 
+    let gameState = { players: {}, particles: [], orbs: [], traps: [] };
+    let lastNetTime = 0, lastClientTime = 0; 
+    const keys = {}; let isAttacking = false, mouseX = 0, mouseY = 0;
 
     window.addEventListener("keydown", (e) => keys[e.code] = true);
     window.addEventListener("keyup", (e) => keys[e.code] = false);
     canvas.addEventListener("mousedown", () => isAttacking = true);
     canvas.addEventListener("mouseup", () => isAttacking = false);
-    
-    canvas.addEventListener("mousemove", (e) => {
-      const rect = canvas.getBoundingClientRect();
-      mouseX = e.clientX - rect.left;
-      mouseY = e.clientY - rect.top;
-    });
+    canvas.addEventListener("mousemove", (e) => { mouseX = e.clientX; mouseY = e.clientY; });
 
     function getMouseDir() {
       let dx = mouseX - (canvas.width / 2);
@@ -88,278 +101,277 @@
       return dy > 0 ? "down" : "up";
     }
 
-    // --- NETWORKING LOGIC ---
-    document.getElementById("host-btn").onclick = () => {
-      isHost = true;
-      document.getElementById("menu").style.display = "none";
-      statusTxt.innerText = "Status: HOSTING. Your Code: " + shortCode;
+    // --- UI LOGIC ---
+    function updateHUD() {
+      let p = gameState.players[myPlayerId];
+      if (!p) return;
+      document.getElementById("hud").style.display = "block";
+      document.getElementById("level-txt").innerText = `Level ${p.level} - ${p.className}`;
       
-      addPlayerToGame(0);
-      myPlayerId = 0;
+      let nextLevelXP = getXPForLevel(p.level + 1);
+      let currentLevelXP = getXPForLevel(p.level);
+      let progress = ((p.xp - currentLevelXP) / (nextLevelXP - currentLevelXP)) * 100;
+      document.getElementById("xp-bar-fill").style.width = Math.min(100, Math.max(0, progress)) + "%";
+
+      // Show upgrade menu if eligible
+      if (p.level >= 5 && p.className === "Squire") {
+        document.getElementById("upgrade-menu").style.display = "block";
+      } else {
+        document.getElementById("upgrade-menu").style.display = "none";
+      }
+    }
+
+    function getXPForLevel(lvl) { return (lvl - 1) * 1; } // 1 kill = 1 level for now
+
+    function selectUpgrade(newClass) {
+      document.getElementById("upgrade-menu").style.display = "none";
+      if (isHost) { gameState.players[myPlayerId].className = newClass; } 
+      else { hostConn.send({ type: "upgrade", newClass: newClass }); }
+    }
+    document.getElementById("btn-guardian").onclick = () => selectUpgrade("Guardian");
+    document.getElementById("btn-duelist").onclick = () => selectUpgrade("Duelist");
+    document.getElementById("btn-berserker").onclick = () => selectUpgrade("Berserker");
+    document.getElementById("btn-warden").onclick = () => selectUpgrade("Warden");
+
+    // --- NETWORKING ---
+    document.getElementById("host-btn").onclick = () => {
+      isHost = true; document.getElementById("menu").style.display = "none";
+      document.getElementById("status").innerText = "HOST CODE: " + peer.id;
+      addPlayer(0); myPlayerId = 0;
 
       peer.on("connection", (conn) => {
-        if (clientConns.length >= 3) { conn.close(); return; } 
-        
-        const newPlayerId = clientConns.length + 1;
-        clientConns.push(conn);
-        addPlayerToGame(newPlayerId);
-
-        conn.on("open", () => {
-          conn.send({ type: "init", id: newPlayerId });
-          conn.send({ type: "state", state: gameState });
-        });
-
+        if (clientConns.length >= 3) return conn.close();
+        let newId = clientConns.length + 1; clientConns.push(conn);
+        addPlayer(newId);
+        conn.on("open", () => { conn.send({ type: "init", id: newId }); });
         conn.on("data", (data) => {
-          if (data.type === "input" && gameState.players[newPlayerId]) {
-            gameState.players[newPlayerId].keys = data.keys;
-            gameState.players[newPlayerId].wantsAttack = data.attack;
-            if (data.mouseDir) gameState.players[newPlayerId].mouseDir = data.mouseDir;
+          if (data.type === "input" && gameState.players[newId]) {
+            gameState.players[newId].keys = data.keys;
+            gameState.players[newId].wantsAttack = data.attack;
+            gameState.players[newId].mouseDir = data.mouseDir;
+          }
+          if (data.type === "upgrade" && gameState.players[newId]) {
+            gameState.players[newId].className = data.newClass;
           }
         });
       });
     };
 
     document.getElementById("join-btn").onclick = () => {
-      const hostId = document.getElementById("join-id").value.trim().toUpperCase();
+      let hostId = document.getElementById("join-id").value.trim().toUpperCase();
       if (!hostId) return;
-      
       document.getElementById("menu").style.display = "none";
-      statusTxt.innerText = "Connecting...";
-      
+      document.getElementById("status").innerText = "Connecting...";
       hostConn = peer.connect(hostId);
-      hostConn.on("open", () => statusTxt.innerText = "CONNECTED!");
+      hostConn.on("open", () => document.getElementById("status").innerText = "CONNECTED!");
       hostConn.on("data", (data) => {
         if (data.type === "init") myPlayerId = data.id;
-        else if (data.type === "state") gameState = data.state; 
+        else if (data.type === "state") { gameState = data.state; updateHUD(); }
       });
     };
 
-    function addPlayerToGame(id) {
+    function addPlayer(id) {
       gameState.players[id] = {
-        x: Math.random() * (WORLD_SIZE - 100) + 50,
-        y: Math.random() * (WORLD_SIZE - 100) + 50,
-        color: COLORS[id], score: 0, hp: 100, // Added HP
-        dir: "right", mouseDir: "right",
-        swingTimer: 0, dashTimer: 0, dashCooldown: 0,
-        keys: {}, wantsAttack: false
+        x: Math.random() * (WORLD_SIZE-100)+50, y: Math.random() * (WORLD_SIZE-100)+50,
+        color: COLORS[id], hp: 100, score: 0, level: 1, xp: 0, className: "Squire",
+        dir: "right", mouseDir: "right", swingTimer: 0, dashTimer: 0, dashCooldown: 0, keys: {}, wantsAttack: false
       };
     }
 
-    // --- PARTICLE LOGIC (HOST ONLY) ---
-    function spawnParticles(x, y, color, amount) {
-      for(let i=0; i<amount; i++) {
-        gameState.particles.push({
-          x: x, y: y,
-          vx: (Math.random() - 0.5) * 12,
-          vy: (Math.random() - 0.5) * 12,
-          color: color,
-          life: 20 + Math.random() * 20,
-          maxLife: 40
-        });
+    // --- HOST GAME LOGIC ---
+    function getWeapons(p) {
+      // Returns an array of hitboxes depending on class
+      let len = 40, w = 10, off = P_SIZE/2 - 5;
+      
+      if (p.className === "Berserker") { len = 50; w = 30; off = 0; }
+      if (p.className === "Guardian") { len = 15; w = 40; off = -5; } // Shield shape
+
+      let boxes = [];
+      if (p.className === "Duelist") { // Two fast daggers
+        let sep = 10;
+        if (p.dir === "up") { boxes.push({x:p.x+off-sep, y:p.y-len, w:10, h:len}); boxes.push({x:p.x+off+sep, y:p.y-len, w:10, h:len}); }
+        if (p.dir === "down") { boxes.push({x:p.x+off-sep, y:p.y+P_SIZE, w:10, h:len}); boxes.push({x:p.x+off+sep, y:p.y+P_SIZE, w:10, h:len}); }
+        if (p.dir === "left") { boxes.push({x:p.x-len, y:p.y+off-sep, w:len, h:10}); boxes.push({x:p.x-len, y:p.y+off+sep, w:len, h:10}); }
+        if (p.dir === "right") { boxes.push({x:p.x+P_SIZE, y:p.y+off-sep, w:len, h:10}); boxes.push({x:p.x+P_SIZE, y:p.y+off+sep, w:len, h:10}); }
+      } else { // Single weapon
+        if (p.dir === "up") boxes.push({ x: p.x+off, y: p.y-len, w: w, h: len });
+        if (p.dir === "down") boxes.push({ x: p.x+off, y: p.y+P_SIZE, w: w, h: len });
+        if (p.dir === "left") boxes.push({ x: p.x-len, y: p.y+off, w: len, h: w });
+        if (p.dir === "right") boxes.push({ x: p.x+P_SIZE, y: p.y+off, w: len, h: w });
+      }
+      return boxes;
+    }
+
+    function checkHit(rectA, rectB) {
+      return rectA.x < rectB.x + rectB.w && rectA.x + rectA.w > rectB.x &&
+             rectA.y < rectB.y + rectB.h && rectA.y + rectA.h > rectB.y;
+    }
+
+    function addXP(p, amount) {
+      p.xp += amount;
+      while (p.xp >= getXPForLevel(p.level + 1)) {
+        p.level++;
+        // Heal on level up
+        p.hp = 100;
       }
     }
 
-    // --- GAME LOGIC (HOST ONLY) ---
     function updatePhysics() {
       if (!isHost) return;
-
       if (gameState.players[0]) {
-        gameState.players[0].keys = keys;
-        gameState.players[0].wantsAttack = isAttacking;
-        gameState.players[0].mouseDir = getMouseDir();
+        gameState.players[0].keys = keys; gameState.players[0].wantsAttack = isAttacking; gameState.players[0].mouseDir = getMouseDir();
       }
 
-      // Update Particles
-      for (let i = gameState.particles.length - 1; i >= 0; i--) {
-        let pt = gameState.particles[i];
-        pt.x += pt.vx; pt.y += pt.vy; 
-        pt.life--;
-        if (pt.life <= 0) gameState.particles.splice(i, 1);
+      // Spawn XP Orbs
+      if (Math.random() < 0.05 && gameState.orbs.length < 100) {
+        gameState.orbs.push({ x: Math.random()*(WORLD_SIZE-40)+20, y: Math.random()*(WORLD_SIZE-40)+20, size: 10 });
+      }
+      
+      // Update Traps
+      for (let i = gameState.traps.length - 1; i >= 0; i--) {
+        gameState.traps[i].life--;
+        if (gameState.traps[i].life <= 0) gameState.traps.splice(i, 1);
       }
 
-      const playerIds = Object.keys(gameState.players);
-      playerIds.forEach(id => {
+      const pIds = Object.keys(gameState.players);
+      pIds.forEach(id => {
         let p = gameState.players[id];
-        let pKeys = p.keys;
+        let stats = CLASSES[p.className];
         
         if (p.dashCooldown > 0) p.dashCooldown--;
         if (p.swingTimer > 0) p.swingTimer--;
 
-        let currentSpeed = SPEED;
-        if (pKeys["Space"] && p.dashCooldown === 0) {
-          p.dashTimer = 10;
-          p.dashCooldown = 60; 
+        let spd = stats.speed;
+        if (p.keys["Space"] && p.dashCooldown === 0) {
+          p.dashTimer = 10; p.dashCooldown = stats.cooldown; 
+          if (p.className === "Warden") {
+            gameState.traps.push({ x: p.x, y: p.y, owner: id, life: 300 });
+          }
         }
-        
-        if (p.dashTimer > 0) {
-          currentSpeed = DASH_SPEED;
-          p.dashTimer--;
-          // Spawn dash trail particles
-          spawnParticles(p.x + P_SIZE/2, p.y + P_SIZE/2, "#fff", 1);
-        }
+        if (p.dashTimer > 0) { spd = stats.dash; p.dashTimer--; }
 
-        if (pKeys["KeyW"] || pKeys["ArrowUp"]) p.y -= currentSpeed; 
-        if (pKeys["KeyS"] || pKeys["ArrowDown"]) p.y += currentSpeed; 
-        if (pKeys["KeyA"] || pKeys["ArrowLeft"]) p.x -= currentSpeed; 
-        if (pKeys["KeyD"] || pKeys["ArrowRight"]) p.x += currentSpeed; 
+        if (p.keys["KeyW"] || p.keys["ArrowUp"]) p.y -= spd; 
+        if (p.keys["KeyS"] || p.keys["ArrowDown"]) p.y += spd; 
+        if (p.keys["KeyA"] || p.keys["ArrowLeft"]) p.x -= spd; 
+        if (p.keys["KeyD"] || p.keys["ArrowRight"]) p.x += spd; 
+        p.x = Math.max(0, Math.min(WORLD_SIZE-P_SIZE, p.x)); p.y = Math.max(0, Math.min(WORLD_SIZE-P_SIZE, p.y));
 
-        p.x = Math.max(0, Math.min(WORLD_SIZE - P_SIZE, p.x));
-        p.y = Math.max(0, Math.min(WORLD_SIZE - P_SIZE, p.y));
+        // Trap collisions
+        gameState.traps.forEach(trap => {
+          if (trap.owner !== id && checkHit(p, {x: trap.x, y: trap.y, w: P_SIZE, h: P_SIZE})) {
+            p.hp -= 1; // Traps tick damage fast
+          }
+        });
 
         if (p.wantsAttack && p.swingTimer === 0 && p.dashTimer <= 0) {
-          p.dir = p.mouseDir;
-          p.swingTimer = 15; 
-          
-          let swordRect = getSwordRect(p);
+          p.dir = p.mouseDir; p.swingTimer = stats.swingTicks; 
+          let hitboxes = getWeapons(p);
 
-          playerIds.forEach(targetId => {
-            if (id !== targetId) {
-              let t = gameState.players[targetId];
-              if (swordRect.x < t.x + P_SIZE && swordRect.x + swordRect.w > t.x &&
-                  swordRect.y < t.y + P_SIZE && swordRect.y + swordRect.h > t.y) {
-                
-                t.hp -= 25; // 4 Hits to eliminate
-                if (t.hp <= 0) {
-                  p.score += 1;
-                  t.hp = 100;
-                  // Death Explosion!
-                  spawnParticles(t.x + P_SIZE/2, t.y + P_SIZE/2, t.color, 40);
-                  t.x = Math.random() * (WORLD_SIZE - 100) + 50;
-                  t.y = Math.random() * (WORLD_SIZE - 100) + 50;
-                } else {
-                  // Hit Sparks
-                  spawnParticles(t.x + P_SIZE/2, t.y + P_SIZE/2, "#ffea00", 10);
-                }
+          // Hit Orbs
+          hitboxes.forEach(box => {
+            for (let i = gameState.orbs.length - 1; i >= 0; i--) {
+              let o = gameState.orbs[i];
+              if (checkHit(box, {x: o.x-o.size, y: o.y-o.size, w: o.size*2, h: o.size*2})) {
+                addXP(p, 0.5);
+                gameState.orbs.splice(i, 1);
               }
             }
+            
+            // Hit Players
+            pIds.forEach(tId => {
+              if (id !== tId) {
+                let t = gameState.players[tId];
+                if (checkHit(box, {x: t.x, y: t.y, w: P_SIZE, h: P_SIZE})) {
+                  t.hp -= 25;
+                  if (t.hp <= 0) {
+                    p.score++; addXP(p, 1.0);
+                    t.hp = 100; t.x = Math.random()*(WORLD_SIZE-100)+50; t.y = Math.random()*(WORLD_SIZE-100)+50;
+                  }
+                }
+              }
+            });
           });
         }
       });
 
-      // UPGRADED TO 60 FPS NETWORK SPEED (~16ms throttle)
       let now = Date.now();
       if (now - lastNetTime > 16) {
-        clientConns.forEach(conn => { if (conn.open) conn.send({ type: "state", state: gameState }); });
+        clientConns.forEach(c => { if (c.open) c.send({ type: "state", state: gameState }); });
         lastNetTime = now;
       }
       
-      updateScoreboard();
-    }
-
-    function getSwordRect(p) {
-      if (p.dir === "up") return { x: p.x + P_SIZE/2 - 5, y: p.y - SWORD_LEN, w: 10, h: SWORD_LEN };
-      if (p.dir === "down") return { x: p.x + P_SIZE/2 - 5, y: p.y + P_SIZE, w: 10, h: SWORD_LEN };
-      if (p.dir === "left") return { x: p.x - SWORD_LEN, y: p.y + P_SIZE/2 - 5, w: SWORD_LEN, h: 10 };
-      if (p.dir === "right") return { x: p.x + P_SIZE, y: p.y + P_SIZE/2 - 5, w: SWORD_LEN, h: 10 };
-      return { x: 0, y: 0, w: 0, h: 0 };
-    }
-
-    function updateScoreboard() {
       let txt = "";
-      Object.keys(gameState.players).forEach(id => {
-        txt += `<span style="color:${COLORS[id]}">Player ${parseInt(id)+1}: ${gameState.players[id].score}</span> | `;
+      Object.keys(gameState.players).forEach(i => {
+        txt += `<span style="color:${COLORS[i]}">Player ${parseInt(i)+1}: Lvl ${gameState.players[i].level}</span> | `;
       });
-      scoresTxt.innerHTML = txt.slice(0, -2);
+      document.getElementById("scores").innerHTML = txt.slice(0, -2);
     }
 
-    // --- DRAWING LOGIC ---
+    // --- DRAWING ---
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
       let myP = gameState.players[myPlayerId];
       if (!myP) return;
 
-      let camX = myP.x - canvas.width / 2 + P_SIZE / 2;
-      let camY = myP.y - canvas.height / 2 + P_SIZE / 2;
-
       ctx.save();
-      ctx.translate(-camX, -camY);
+      ctx.translate(-(myP.x - canvas.width/2 + P_SIZE/2), -(myP.y - canvas.height/2 + P_SIZE/2));
 
-      // Draw Grid
-      ctx.strokeStyle = "#444";
+      // Grid
+      ctx.strokeStyle = "#444"; ctx.lineWidth = 1;
       for(let i=0; i<WORLD_SIZE; i+=100){
         ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,WORLD_SIZE); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(WORLD_SIZE,i); ctx.stroke();
       }
-      ctx.strokeStyle = "#fff";
-      ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+      ctx.strokeStyle = "#fff"; ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-      // Draw Particles
-      if (gameState.particles) {
-        gameState.particles.forEach(pt => {
-          ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
-          ctx.fillStyle = pt.color;
-          ctx.fillRect(pt.x, pt.y, 6, 6);
-        });
-        ctx.globalAlpha = 1.0; // Reset transparency
-      }
+      // Orbs
+      gameState.orbs.forEach(o => {
+        ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.arc(o.x, o.y, o.size, 0, Math.PI*2); ctx.fill();
+      });
 
-      // Draw Players, Swords, Health, and Dash UI
+      // Traps (Warden)
+      gameState.traps.forEach(t => {
+        ctx.fillStyle = "#8b4513"; // Brown box
+        ctx.fillRect(t.x, t.y, P_SIZE, P_SIZE);
+        ctx.fillStyle = "black";
+        ctx.fillRect(t.x+5, t.y+5, P_SIZE-10, P_SIZE-10); // Inner hole
+      });
+
+      // Players
       Object.values(gameState.players).forEach(p => {
-        ctx.fillStyle = p.color;
-        ctx.fillRect(p.x, p.y, P_SIZE, P_SIZE);
+        ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, P_SIZE, P_SIZE);
+        
+        // Inner class indicator color
+        ctx.fillStyle = CLASSES[p.className].color;
+        ctx.fillRect(p.x+10, p.y+10, 10, 10);
 
-        // Draw Health Bar
-        ctx.fillStyle = "#ff0000";
-        ctx.fillRect(p.x, p.y - 12, P_SIZE, 6);
-        ctx.fillStyle = "#00ff00";
-        ctx.fillRect(p.x, p.y - 12, P_SIZE * (p.hp / 100), 6);
+        // Health & Dash bars
+        ctx.fillStyle = "#f00"; ctx.fillRect(p.x, p.y-12, P_SIZE, 5);
+        ctx.fillStyle = "#0f0"; ctx.fillRect(p.x, p.y-12, P_SIZE*(p.hp/100), 5);
+        let maxCool = CLASSES[p.className].cooldown;
+        ctx.fillStyle = "#0ff"; ctx.fillRect(p.x, p.y+P_SIZE+4, P_SIZE*(1-(p.dashCooldown/maxCool)), 3);
 
-        // Draw Dash Cooldown Bar
-        ctx.fillStyle = "#333";
-        ctx.fillRect(p.x, p.y + P_SIZE + 4, P_SIZE, 4);
-        if (p.dashCooldown > 0) {
-          ctx.fillStyle = "#00ffff";
-          ctx.fillRect(p.x, p.y + P_SIZE + 4, P_SIZE * (1 - (p.dashCooldown / 60)), 4);
-        } else {
-          ctx.fillStyle = "#00ffff";
-          ctx.fillRect(p.x, p.y + P_SIZE + 4, P_SIZE, 4);
-        }
-
-        // Draw Sword
+        // Weapons
         if (p.swingTimer > 5) {
-          ctx.fillStyle = "#fff";
-          let s = getSwordRect(p);
-          ctx.fillRect(s.x, s.y, s.w, s.h);
+          ctx.fillStyle = CLASSES[p.className].color;
+          let hitboxes = getWeapons(p);
+          hitboxes.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
         }
       });
-
       ctx.restore();
-
-      // Draw Minimap
-      const mapSize = 120;
-      const mapX = canvas.width - mapSize - 10;
-      const mapY = canvas.height - mapSize - 10;
-      
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.fillRect(mapX, mapY, mapSize, mapSize);
-      ctx.strokeStyle = "#fff"; 
-      ctx.lineWidth = 2;
-      ctx.strokeRect(mapX, mapY, mapSize, mapSize);
-
-      Object.values(gameState.players).forEach(p => {
-        let miniX = mapX + (p.x / WORLD_SIZE) * mapSize;
-        let miniY = mapY + (p.y / WORLD_SIZE) * mapSize;
-        ctx.fillStyle = p.color;
-        ctx.fillRect(miniX, miniY, 4, 4);
-      });
+      if (isHost) updateHUD(); // Host manual HUD update
     }
 
     function loop() {
-      if (isHost) {
-        updatePhysics();
-      } else if (hostConn && hostConn.open) {
-        // UPGRADED TO 60 FPS NETWORK SPEED (~16ms throttle)
+      if (isHost) updatePhysics();
+      else if (hostConn && hostConn.open) {
         let now = Date.now();
         if (now - lastClientTime > 16) {
-          hostConn.send({ type: "input", keys: { ...keys }, attack: isAttacking, mouseDir: getMouseDir() });
+          hostConn.send({ type: "input", keys: {...keys}, attack: isAttacking, mouseDir: getMouseDir() });
           lastClientTime = now;
         }
-        updateScoreboard();
       }
-      
-      draw();
-      requestAnimationFrame(loop);
+      draw(); requestAnimationFrame(loop);
     }
     loop();
   </script>
