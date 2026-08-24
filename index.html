@@ -1,141 +1,1976 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>4-Player Custom Class Arena</title>
-  <style>
-    body { margin: 0; background: #222; color: #fff; font-family: sans-serif; overflow: hidden; user-select: none; }
-    canvas { border: 2px solid #555; background: #333; cursor: crosshair; display: block; margin: 0 auto; }
-    
-    #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-    #menu-container { pointer-events: auto; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); text-align: center; background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 8px; z-index: 10; }
-    
-    input, button { padding: 8px; font-size: 14px; margin: 2px; cursor: pointer; border-radius: 4px; border: 1px solid #777; background: #444; color: white;}
-    button:hover { background: #666; }
-    #scores { margin-top: 5px; font-weight: bold; color: #ffcc00; }
-    p { margin: 5px 0 0 0; font-size: 13px; }
+    <meta charset="UTF-8" />
+    <title>pol.io</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #111;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            background: #1a1a2e;
+            cursor: crosshair;
+            width: 100vw;
+            height: 100vh;
+        }
 
-    #hud { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); text-align: center; width: 400px; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px; display: none; }
-    #xp-bar-bg { width: 100%; height: 20px; background: #444; border-radius: 10px; overflow: hidden; margin-top: 5px; border: 2px solid #222; }
-    #xp-bar-fill { height: 100%; background: #ffcc00; width: 0%; transition: width 0.2s; }
-    #level-txt { font-weight: bold; font-size: 18px; margin: 0; }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        #menu-container {
+            pointer-events: auto;
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 14px 28px;
+            border-radius: 14px;
+            border: 1px solid #444;
+            text-align: center;
+            z-index: 20;
+            backdrop-filter: blur(6px);
+            min-width: 420px;
+        }
+        #menu-container h1 {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #ffcc00, #ff8800);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+        #menu-container .sub {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 8px;
+        }
+        input,
+        button {
+            padding: 8px 14px;
+            font-size: 14px;
+            margin: 4px;
+            border-radius: 6px;
+            border: 1px solid #555;
+            background: #2a2a3e;
+            color: #fff;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        input {
+            background: #1a1a2e;
+            width: 130px;
+            text-transform: uppercase;
+            text-align: center;
+        }
+        button:hover {
+            background: #3a3a5e;
+            border-color: #ffcc00;
+        }
+        button.primary {
+            background: #ffcc00;
+            color: #111;
+            font-weight: bold;
+            border-color: #ffcc00;
+        }
+        button.primary:hover {
+            background: #ffdd33;
+        }
+        #status {
+            font-size: 13px;
+            color: #88ddff;
+            margin-top: 6px;
+        }
+        #scores {
+            margin-top: 4px;
+            font-size: 13px;
+            color: #ffcc66;
+            display: flex;
+            justify-content: center;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+        .score-item {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 2px 10px;
+            border-radius: 10px;
+        }
 
-    #upgrade-menu { pointer-events: auto; position: absolute; top: 20%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 20px; border-radius: 10px; border: 2px solid #fff; display: none; text-align: center; }
-    .upg-btn { display: block; width: 250px; margin: 10px auto; padding: 10px; font-size: 16px; font-weight: bold; border: none; border-radius: 5px; color: white; text-shadow: 1px 1px 2px black; cursor: pointer;}
-    .upg-btn:hover { filter: brightness(1.2); }
-  </style>
+        #hud {
+            position: absolute;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 440px;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 10px 18px;
+            border-radius: 14px;
+            border: 1px solid #333;
+            backdrop-filter: blur(4px);
+            display: none;
+            pointer-events: none;
+            text-align: center;
+        }
+        #hud .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        #level-txt {
+            font-weight: bold;
+            font-size: 17px;
+            color: #ffcc00;
+            min-width: 140px;
+        }
+        #class-tag {
+            font-size: 14px;
+            color: #88ddff;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 2px 14px;
+            border-radius: 20px;
+        }
+        #xp-bar-bg {
+            flex: 1;
+            height: 16px;
+            background: #2a2a3e;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid #444;
+        }
+        #xp-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffcc00, #ff8800);
+            width: 0%;
+            transition: width 0.25s ease;
+        }
+
+        #upgrade-menu {
+            pointer-events: auto;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 10, 20, 0.94);
+            padding: 24px 32px;
+            border-radius: 18px;
+            border: 2px solid #ffcc00;
+            display: none;
+            text-align: center;
+            z-index: 30;
+            max-width: 480px;
+            width: 90%;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 60px rgba(255, 204, 0, 0.15);
+        }
+        #upgrade-menu h2 {
+            color: #ffcc00;
+            font-size: 22px;
+            margin-bottom: 4px;
+        }
+        #upgrade-menu p {
+            color: #aaa;
+            font-size: 14px;
+            margin-bottom: 14px;
+        }
+        .upg-btn {
+            display: block;
+            width: 100%;
+            margin: 8px 0;
+            padding: 12px 16px;
+            font-size: 15px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            transition: 0.2s;
+            text-align: left;
+            background: #2a2a4e;
+        }
+        .upg-btn:hover {
+            transform: scale(1.02);
+            filter: brightness(1.25);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+        .upg-btn .sub {
+            font-weight: normal;
+            font-size: 12px;
+            opacity: 0.7;
+            display: block;
+            margin-top: 2px;
+        }
+
+        #class-tree-overlay {
+            pointer-events: auto;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(8, 8, 20, 0.92);
+            padding: 20px 28px;
+            border-radius: 18px;
+            border: 2px solid #556;
+            display: none;
+            z-index: 25;
+            max-width: 700px;
+            width: 92%;
+            max-height: 80vh;
+            overflow-y: auto;
+            backdrop-filter: blur(12px);
+        }
+        #class-tree-overlay h2 {
+            color: #ffcc00;
+            text-align: center;
+            font-size: 22px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 8px;
+        }
+        .tree-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .tree-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            padding: 12px 14px;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: 0.2s;
+            cursor: default;
+        }
+        .tree-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #ffcc00;
+        }
+        .tree-card .preview {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: bold;
+            flex-shrink: 0;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        .tree-card .info {
+            flex: 1;
+            text-align: left;
+        }
+        .tree-card .info .name {
+            font-weight: bold;
+            font-size: 15px;
+        }
+        .tree-card .info .weapon {
+            font-size: 12px;
+            color: #aaa;
+        }
+        .tree-card .info .desc {
+            font-size: 11px;
+            color: #777;
+        }
+        .tree-card .lvl-badge {
+            font-size: 11px;
+            background: #ffcc00;
+            color: #111;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        .tree-close {
+            display: block;
+            margin: 14px auto 0;
+            padding: 8px 30px;
+            background: #333;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .tree-close:hover {
+            background: #555;
+        }
+        .tree-hint {
+            text-align: center;
+            color: #888;
+            font-size: 12px;
+            margin-top: 8px;
+            border-top: 1px solid #222;
+            padding-top: 8px;
+        }
+
+        #toast {
+            position: absolute;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            color: #ffcc00;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 15;
+            border: 1px solid #ffcc0055;
+        }
+        #toast.show {
+            opacity: 1;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 600px) {
+            #menu-container {
+                min-width: unset;
+                width: 94%;
+                padding: 10px 12px;
+                top: 8px;
+            }
+            #menu-container h1 {
+                font-size: 20px;
+            }
+            .tree-grid {
+                grid-template-columns: 1fr;
+            }
+            #hud {
+                width: 94%;
+                bottom: 12px;
+                padding: 8px 12px;
+            }
+            #hud .row {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            #level-txt {
+                font-size: 14px;
+                min-width: unset;
+            }
+        }
+    </style>
 </head>
 <body>
 
-  <div id="ui-layer">
-    <div id="menu-container">
-      <div id="menu">
-        <button id="host-btn">Host Private Game</button>
-        <span> OR </span>
-        <input type="text" id="join-id" placeholder="5-Letter Code" maxlength="5" style="text-transform:uppercase; width: 120px;" />
-        <button id="join-btn">Join Private Game</button>
-      </div>
-      <p id="status">Status: Waiting...</p>
-      <div id="scores"></div>
+    <div id="ui-layer">
+        <div id="menu-container">
+            <h1>◈ pol.io</h1>
+            <div class="sub">⚔️ 4‑Player Arena · Class Evolutions</div>
+            <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:6px;">
+                <button class="primary" id="host-btn">★ Host Private</button>
+                <span style="color:#666;align-self:center;">or</span>
+                <input type="text" id="join-id" placeholder="CODE" maxlength="5" style="text-transform:uppercase;width:100px;" />
+                <button id="join-btn">Join</button>
+            </div>
+            <div id="status">⏳ Waiting for connection…</div>
+            <div id="scores"></div>
+        </div>
+
+        <div id="hud">
+            <div class="row">
+                <span id="level-txt">⚔ Lv.1 Squire</span>
+                <span id="class-tag">Squire</span>
+                <div id="xp-bar-bg"><div id="xp-bar-fill" style="width:0%"></div></div>
+            </div>
+        </div>
+
+        <div id="toast"></div>
+
+        <div id="upgrade-menu">
+            <h2>⬆ Level Up!</h2>
+            <p>Choose your evolution:</p>
+            <div id="upgrade-buttons"></div>
+        </div>
+
+        <div id="class-tree-overlay">
+            <h2>🌳 Class Evolution Tree</h2>
+            <div class="tree-grid" id="tree-grid"></div>
+            <div class="tree-hint">Press <kbd>Y</kbd> to toggle · Click a class to preview</div>
+            <button class="tree-close" id="tree-close-btn">✕ Close</button>
+        </div>
     </div>
 
-    <div id="upgrade-menu">
-      <h2 id="upg-title">Upgrade Available!</h2>
-      <p>Choose your path:</p>
-      <div id="upgrade-buttons"></div>
-    </div>
+    <canvas id="gameCanvas"></canvas>
 
-    <div id="hud">
-      <p id="level-txt">Level 1 - Squire</p>
-      <div id="xp-bar-bg"><div id="xp-bar-fill"></div></div>
-    </div>
-  </div>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js">
+    </script>
+    <script>
+        // ─── CONFIG ───────────────────────────────────────────────
+        const WORLD = 2400;
+        const PLAYER_RADIUS = 24;
 
-  <canvas id="gameCanvas" width="1000" height="700"></canvas>
+        // ─── CLASS DEFINITIONS ────────────────────────────────────
+        const CLASS_DATA = {
+            // ─── BASE CLASSES (level 1–29) ──────────────────────
+            Squire: {
+                tier: 1,
+                color: '#4488ff',
+                speed: 4.8,
+                dash: 14,
+                attackCooldown: 45,
+                attackDuration: 14,
+                weapon: 'Longsword',
+                weaponW: 10,
+                weaponL: 42,
+                desc: 'Balanced warrior',
+                lvl30: 'Knight'
+            },
+            Guardian: {
+                tier: 1,
+                color: '#33cc66',
+                speed: 3.6,
+                dash: 10,
+                attackCooldown: 50,
+                attackDuration: 18,
+                weapon: 'Shield',
+                weaponW: 50,
+                weaponL: 14,
+                desc: 'Sturdy defender',
+                lvl30: 'Warden'
+            },
+            Duelist: {
+                tier: 1,
+                color: '#66ddff',
+                speed: 6.8,
+                dash: 22,
+                attackCooldown: 30,
+                attackDuration: 10,
+                weapon: 'Rapier',
+                weaponW: 6,
+                weaponL: 56,
+                desc: 'Swift fencer',
+                lvl30: 'Blade Master'
+            },
+            Berserker: {
+                tier: 1,
+                color: '#ff4444',
+                speed: 3.8,
+                dash: 12,
+                attackCooldown: 70,
+                attackDuration: 24,
+                weapon: 'Greataxe',
+                weaponW: 28,
+                weaponL: 48,
+                desc: 'Raging powerhouse',
+                lvl30: 'Fury Lord'
+            },
+            Spearman: {
+                tier: 1,
+                color: '#44bbaa',
+                speed: 5.6,
+                dash: 18,
+                attackCooldown: 42,
+                attackDuration: 14,
+                weapon: 'Spear',
+                weaponW: 6,
+                weaponL: 80,
+                desc: 'Long‑reach fighter',
+                lvl30: 'Halberdier'
+            },
+            Executioner: {
+                tier: 1,
+                color: '#aa2222',
+                speed: 3.2,
+                dash: 10,
+                attackCooldown: 80,
+                attackDuration: 30,
+                weapon: 'Greatsword',
+                weaponW: 48,
+                weaponL: 44,
+                desc: 'Devastating strikes',
+                lvl30: 'Juggernaut'
+            },
+            Hurricane: {
+                tier: 1,
+                color: '#88ccff',
+                speed: 7.6,
+                dash: 24,
+                attackCooldown: 22,
+                attackDuration: 16,
+                weapon: 'Windblade',
+                weaponW: 8,
+                weaponL: 46,
+                desc: 'Whirlwind attacker',
+                lvl30: 'Tempest'
+            },
+            Warden: {
+                tier: 1,
+                color: '#ffdd44',
+                speed: 4.6,
+                dash: 14,
+                attackCooldown: 50,
+                attackDuration: 16,
+                weapon: 'Mace',
+                weaponW: 18,
+                weaponL: 38,
+                desc: 'Versatile guardian',
+                lvl30: 'Paladin'
+            },
+            // ─── LEVEL 30 EVOLUTIONS ─────────────────────────────
+            Knight: {
+                tier: 2,
+                color: '#6699ff',
+                speed: 5.2,
+                dash: 16,
+                attackCooldown: 38,
+                attackDuration: 16,
+                weapon: 'Knight Sword',
+                weaponW: 14,
+                weaponL: 50,
+                desc: '⚔ Elite balanced warrior',
+                lvl30: null
+            },
+            Warden: {
+                tier: 2,
+                color: '#44dd88',
+                speed: 4.0,
+                dash: 12,
+                attackCooldown: 44,
+                attackDuration: 20,
+                weapon: 'Tower Shield',
+                weaponW: 60,
+                weaponL: 18,
+                desc: '🛡 Unbreakable defense',
+                lvl30: null
+            },
+            'Blade Master': {
+                tier: 2,
+                color: '#88eeff',
+                speed: 7.4,
+                dash: 26,
+                attackCooldown: 24,
+                attackDuration: 10,
+                weapon: 'Twin Rapiers',
+                weaponW: 6,
+                weaponL: 60,
+                desc: '⚡ Lightning-fast duelist',
+                lvl30: null
+            },
+            'Fury Lord': {
+                tier: 2,
+                color: '#ff6666',
+                speed: 4.2,
+                dash: 14,
+                attackCooldown: 58,
+                attackDuration: 28,
+                weapon: 'Berserker Axe',
+                weaponW: 34,
+                weaponL: 54,
+                desc: '💢 Rage incarnate',
+                lvl30: null
+            },
+            Halberdier: {
+                tier: 2,
+                color: '#55ddbb',
+                speed: 6.0,
+                dash: 20,
+                attackCooldown: 36,
+                attackDuration: 16,
+                weapon: 'Halberd',
+                weaponW: 8,
+                weaponL: 90,
+                desc: '🏹 Supreme reach',
+                lvl30: null
+            },
+            Juggernaut: {
+                tier: 2,
+                color: '#cc3333',
+                speed: 3.0,
+                dash: 10,
+                attackCooldown: 68,
+                attackDuration: 34,
+                weapon: 'Execution Blade',
+                weaponW: 56,
+                weaponL: 50,
+                desc: '💀 Unstoppable force',
+                lvl30: null
+            },
+            Tempest: {
+                tier: 2,
+                color: '#aaddff',
+                speed: 8.2,
+                dash: 28,
+                attackCooldown: 18,
+                attackDuration: 18,
+                weapon: 'Gale Saber',
+                weaponW: 8,
+                weaponL: 50,
+                desc: '🌪 Storm of blades',
+                lvl30: null
+            },
+            Paladin: {
+                tier: 2,
+                color: '#ffdd66',
+                speed: 5.0,
+                dash: 16,
+                attackCooldown: 42,
+                attackDuration: 18,
+                weapon: 'Holy Mace',
+                weaponW: 22,
+                weaponL: 44,
+                desc: '✨ Light-blessed guardian',
+                lvl30: null
+            }
+        };
 
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <script>
-    // --- AUDIO SYSTEM ---
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    let actx;
-    
-    function initAudio() {
-      if (!actx) actx = new AudioContext();
-    }
-    
-    function playSound(type) {
-      if (!actx) return;
-      let osc = actx.createOscillator();
-      let gain = actx.createGain();
-      osc.connect(gain);
-      gain.connect(actx.destination);
-      
-      let now = actx.currentTime;
-      if (type === "swing") {
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(400, now);
-        osc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-        osc.start(now); osc.stop(now + 0.1);
-      } else if (type === "hit") {
-        osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(100, now);
-        osc.frequency.exponentialRampToValueAtTime(50, now + 0.1);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-        osc.start(now); osc.stop(now + 0.1);
-      } else if (type === "level") {
-        osc.type = "square";
-        osc.frequency.setValueAtTime(440, now);
-        osc.frequency.setValueAtTime(660, now + 0.1);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.3);
-        osc.start(now); osc.stop(now + 0.3);
-      } else if (type === "dash") {
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(300, now);
-        osc.frequency.linearRampToValueAtTime(600, now + 0.15);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.15);
-        osc.start(now); osc.stop(now + 0.15);
-      }
-    }
+        // Which classes are base (tier 1)
+        const BASE_CLASSES = Object.keys(CLASS_DATA).filter(k => CLASS_DATA[k].tier === 1);
+        // Which are level 30 (tier 2)
+        const LVL30_CLASSES = Object.keys(CLASS_DATA).filter(k => CLASS_DATA[k].tier === 2);
 
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-    window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+        // Build evolution map: base → lvl30
+        const EVOLUTION_MAP = {};
+        for (const [name, data] of Object.entries(CLASS_DATA)) {
+            if (data.lvl30) EVOLUTION_MAP[name] = data.lvl30;
+        }
 
-    const WORLD_SIZE = 2000;
-    const CLASSES = {
-      "Squire":     { color: "#3366ff", size: 30, speed: 5,   dash: 15, swingTicks: 15, cooldown: 60, w: 10, l: 30 },
-      "Guardian":   { color: "#00cc00", size: 30, speed: 3.5, dash: 10, swingTicks: 20, cooldown: 60, w: 45, l: 12 }, 
-      "Duelist":    { color: "#00ffff", size: 30, speed: 7,   dash: 20, swingTicks: 10, cooldown: 40, w: 8,  l: 55 },
-      "Berserker":  { color: "#ff0000", size: 30, speed: 3.5, dash: 12, swingTicks: 25, cooldown: 80, w: 25, l: 45 },
-      "Warden":     { color: "#ffff00", size: 30, speed: 5,   dash: 15, swingTicks: 15, cooldown: 60, w: 10, l: 30, trapRate: 600 }, 
-      "Juggernaut": { color: "#005500", size: 40, speed: 2.5, dash: 8,  swingTicks: 25, cooldown: 60, w: 60, l: 18 },
-      "Reflector":  { color: "#88ff88", size: 30, speed: 4,   dash: 10, swingTicks: 15, cooldown: 60, w: 40, l: 10 },
-      "Hurricane":  { color: "#99ccff", size: 30, speed: 8,   dash: 22, swingTicks: 20, cooldown: 30, w: 8,  l: 45, spins: true },
-      "Spearman":   { color: "#008888", size: 30, speed: 6,   dash: 18, swingTicks: 15, cooldown: 50, w: 6,  l: 85 },
-      "Executioner":{ color: "#880000", size: 30, speed: 3,   dash: 10, swingTicks: 30, cooldown: 90, w: 50, l: 40 }, 
-      "Flailer":    { color: "#ff8800", size: 30, speed: 4,   dash: 12, swingTicks: 20, cooldown: 70, w: 20, l: 65 }, 
-      "Minefield":  { color: "#ffcc00", size: 30, speed: 5,   dash: 15, swingTicks: 1It sounds like you're dealing with a classic multiplayer testing headache! Since I am an AI, I can't directly open your game files to add the code, sound effects, or polish for you, but I can absolutely guide you step-by-step on how to build these features yourself. 
+        // ─── GAME STATE ──────────────────────────────────────────
+        const state = {
+            players: {}, // peerId -> {x,y,vx,vy,angle,class,level,xp,hp,maxHp,isAttacking,attackTimer,cooldown,dashCooldown,score,kills}
+            projectiles: [],
+            particles: [],
+            localId: null,
+            isHost: false,
+            gameStarted: false,
+            peer: null,
+            conn: null,
+            roomCode: '',
+            keys: {},
+            mouse: { x: 0, y: 0, down: false },
+            camera: { x: 0, y: 0 },
+            myClass: 'Squire',
+            myLevel: 1,
+            myXp: 0,
+            xpToNext: 40,
+            maxXp: 40,
+            // upgrade menu
+            showUpgrade: false,
+            upgradeOptions: [],
+            // tree overlay
+            showTree: false,
+            // toast
+            toastTimer: null,
+            // attack cooldown local
+            localAttackCooldown: 0,
+            localDashCooldown: 0,
+            // scores
+            scoreboard: {},
+            // id counter for projectiles
+            projId: 0,
+            // is local player dead?
+            localDead: false,
+            respawnTimer: 0,
+        };
 
-### The "Frozen" Connection Glitch
-Yes, the issue you're experiencing is almost certainly because you are running both the host and the client on the same computer. This is commonly known as a **Window Focus** issue. 
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let W, H;
 
-*   **What is happening:** Most game engines automatically pause or heavily throttle the game when a window is not actively clicked on (running in the background) to save CPU power. This is why nothing loads or moves until you click back into that specific screen.
-*   **The Fix:** You need to go into your game engine's project settings and enable a setting usually called **"Run in Background"** or **"Allow Background Execution."** This will force both the host and client windows to keep updating simultaneously.
+        function resize() {
+            W = canvas.width = window.innerWidth;
+            H = canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
 
-### Setting Up Servers (Public vs. Private)
-To add a "Public Play" and "Private Play" button, you will need to implement **Matchmaking** using a networking service (like Photon, Unity Relay, or Epic Online Services).
+        // ─── DOM REFS ────────────────────────────────────────────
+        const statusEl = document.getElementById('status');
+        const scoresEl = document.getElementById('scores');
+        const hudEl = document.getElementById('hud');
+        const levelTxt = document.getElementById('level-txt');
+        const classTag = document.getElementById('class-tag');
+        const xpFill = document.getElementById('xp-bar-fill');
+        const upgradeMenu = document.getElementById('upgrade-menu');
+        const upgradeBtns = document.getElementById('upgrade-buttons');
+        const treeOverlay = document.getElementById('class-tree-overlay');
+        const treeGrid = document.getElementById('tree-grid');
+        const toastEl = document.getElementById('toast');
 
-*   **Private Games:** Use your networking service to generate a unique lobby code when the host creates a room. The client will input this string of text to connect directly to that specific lobby.
-*   **Public Games:** You will need to set up a "Server Browser" or quick-match feature. When a player hosts a public game, the game registers it to a central list. When someone clicks "Public Play," the system automatically connects them to a random open lobby from that list.
+        // ─── AUDIO (simple oscillator) ──────────────────────────
+        let actx = null;
 
-### Leveling Up and Polish
-*   **The 3-Level Reward:** Inside your player's health script, find the function that triggers when they die. Right before the player is destroyed, send a message to the attacker's script to add `+3` to their current level variable.
-*   **Sound Effects & Polish:** Add an audio component to your player prefab to trigger a satisfying sound when they get a kill. To really polish the game, consider adding small screen shakes or particle effects when a player levels up.
+        function initAudio() { if (!actx) actx = new(window.AudioContext || window.webkitAudioContext)(); }
 
-What game engine (like Unity, Godot, or Unreal) are you currently using to build this game?
+        function playSound(type) {
+            if (!actx) return;
+            try {
+                const osc = actx.createOscillator();
+                const gain = actx.createGain();
+                osc.connect(gain);
+                gain.connect(actx.destination);
+                const now = actx.currentTime;
+                if (type === 'swing') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(500, now);
+                    osc.frequency.exponentialRampToValueAtTime(200, now + 0.08);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'hit') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(120, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'levelup') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(660, now + 0.08);
+                    osc.frequency.setValueAtTime(880, now + 0.16);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'dash') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(250, now);
+                    osc.frequency.linearRampToValueAtTime(550, now + 0.12);
+                    gain.gain.setValueAtTime(0.07, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                } else if (type === 'death') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(60, now + 0.3);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                }
+            } catch (_) {}
+        }
+
+        // ─── TOAST ───────────────────────────────────────────────
+        function showToast(msg, dur = 1800) {
+            toastEl.textContent = msg;
+            toastEl.classList.add('show');
+            clearTimeout(state.toastTimer);
+            state.toastTimer = setTimeout(() => toastEl.classList.remove('show'), dur);
+        }
+
+        // ─── PEERJS NETWORKING ──────────────────────────────────
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            let code = '';
+            for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+            return code;
+        }
+
+        function getPeerId() {
+            return 'pol-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+        }
+
+        // Host
+        document.getElementById('host-btn').addEventListener('click', () => {
+            initAudio();
+            const code = generateRoomCode();
+            state.roomCode = code;
+            state.isHost = true;
+            const peer = new Peer(getPeerId(), {
+                config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+            });
+            state.peer = peer;
+            peer.on('open', (id) => {
+                statusEl.textContent = `📡 Hosting · Code: ${code} · ID: ${id}`;
+                showToast(`✅ Room created! Code: ${code}`);
+                // Wait for connections
+                peer.on('connection', (conn) => {
+                    state.conn = conn;
+                    setupConnection(conn, true);
+                });
+                // Also listen for data
+                peer.on('error', (err) => {
+                    console.warn('Peer error:', err);
+                    statusEl.textContent = '⚠️ Host error: ' + err.message;
+                });
+                // Start game after a moment
+                setTimeout(() => {
+                    if (!state.gameStarted) {
+                        state.gameStarted = true;
+                        state.localId = id;
+                        spawnLocalPlayer();
+                        hudEl.style.display = 'block';
+                        document.getElementById('menu-container').style.opacity = '0.6';
+                        statusEl.textContent = `🎮 Hosting · Code: ${code} · Waiting for players…`;
+                        showToast('🎮 Game started! Share the code.', 2500);
+                        // Add local player to state
+                        addPlayer(id, state.myClass, true);
+                        // send initial state
+                        broadcastState();
+                    }
+                }, 400);
+            });
+            peer.on('error', (err) => {
+                statusEl.textContent = '❌ Host error: ' + err.message;
+                showToast('❌ Host error: ' + err.message, 3000);
+            });
+        });
+
+        // Join
+        document.getElementById('join-btn').addEventListener('click', () => {
+            initAudio();
+            const code = document.getElementById('join-id').value.trim().toUpperCase();
+            if (!code || code.length !== 5) {
+                showToast('❌ Enter a 5‑letter code.', 2000);
+                return;
+            }
+            state.roomCode = code;
+            state.isHost = false;
+            const peer = new Peer(getPeerId(), {
+                config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+            });
+            state.peer = peer;
+            peer.on('open', (id) => {
+                statusEl.textContent = `🔗 Joining ${code}…`;
+                state.localId = id;
+                // Connect to host
+                const conn = peer.connect(code, { reliable: true });
+                state.conn = conn;
+                setupConnection(conn, false);
+                conn.on('open', () => {
+                    statusEl.textContent = `✅ Connected to ${code}`;
+                    showToast('✅ Connected!', 1500);
+                    // Send join message
+                    sendData({ type: 'join', id: id, class: state.myClass });
+                });
+                peer.on('error', (err) => {
+                    statusEl.textContent = '❌ Join error: ' + err.message;
+                    showToast('❌ Could not join: ' + err.message, 3000);
+                });
+            });
+            peer.on('error', (err) => {
+                statusEl.textContent = '❌ Peer error: ' + err.message;
+                showToast('❌ Error: ' + err.message, 3000);
+            });
+        });
+
+        function setupConnection(conn, isHost) {
+            conn.on('data', (data) => {
+                handleNetworkData(data, isHost);
+            });
+            conn.on('close', () => {
+                showToast('🔌 Connection closed.', 2000);
+                statusEl.textContent = '⚠️ Disconnected';
+                if (isHost) {
+                    // remove all players except local
+                    for (const pid in state.players) {
+                        if (pid !== state.localId) delete state.players[pid];
+                    }
+                }
+            });
+        }
+
+        function sendData(data) {
+            if (state.conn && state.conn.open) {
+                state.conn.send(data);
+            }
+        }
+
+        function broadcastState() {
+            // Send full game state to all connected clients
+            // Since we only have one connection in peer-to-peer, send to conn
+            const payload = {
+                type: 'sync',
+                players: state.players,
+                projectiles: state.projectiles,
+                timestamp: Date.now()
+            };
+            sendData(payload);
+        }
+
+        function handleNetworkData(data, isHost) {
+            if (!data) return;
+            switch (data.type) {
+                case 'join':
+                    // Player joined
+                    if (isHost) {
+                        const pid = data.id;
+                        const cls = data.class || 'Squire';
+                        addPlayer(pid, cls, false);
+                        showToast(`👤 ${pid.slice(0,8)} joined!`, 1500);
+                        broadcastState();
+                        // send back ack with full state
+                        sendData({ type: 'sync', players: state.players, projectiles: state.projectiles });
+                    }
+                    break;
+                case 'sync':
+                    // Received full state (client)
+                    if (!isHost) {
+                        // Update players
+                        for (const [pid, pdata] of Object.entries(data.players || {})) {
+                            if (pid === state.localId) continue; // don't overwrite local
+                            if (!state.players[pid]) {
+                                state.players[pid] = pdata;
+                            } else {
+                                Object.assign(state.players[pid], pdata);
+                            }
+                        }
+                        // Remove players that left
+                        const remotePids = Object.keys(data.players || {});
+                        for (const pid in state.players) {
+                            if (pid !== state.localId && !remotePids.includes(pid)) {
+                                delete state.players[pid];
+                            }
+                        }
+                        state.projectiles = data.projectiles || [];
+                    }
+                    break;
+                case 'player_update':
+                    // Update a specific player
+                    if (data.id && data.id !== state.localId) {
+                        if (state.players[data.id]) {
+                            Object.assign(state.players[data.id], data.update);
+                        }
+                    }
+                    break;
+                case 'attack':
+                    // Someone attacked
+                    if (data.id && data.id !== state.localId) {
+                        const p = state.players[data.id];
+                        if (p) {
+                            p.isAttacking = true;
+                            p.attackTimer = data.duration || 16;
+                            p.angle = data.angle || p.angle || 0;
+                            // Spawn projectile/visual
+                            spawnAttackVisual(data.id, data.angle || 0, data.class || 'Squire');
+                        }
+                    }
+                    break;
+                case 'hit':
+                    // Someone got hit
+                    if (data.targetId === state.localId) {
+                        // local player got hit
+                        const p = state.players[state.localId];
+                        if (p) {
+                            p.hp = (p.hp || 100) - (data.damage || 20);
+                            if (p.hp <= 0) {
+                                p.hp = 0;
+                                dieLocal();
+                            }
+                        }
+                        showToast(`💥 Hit! -${data.damage || 20} HP`, 800);
+                        playSound('hit');
+                    } else if (state.players[data.targetId]) {
+                        // remote player got hit
+                        const p = state.players[data.targetId];
+                        p.hp = (p.hp || 100) - (data.damage || 20);
+                        if (p.hp <= 0) {
+                            p.hp = 0;
+                            // Remove player after death
+                            setTimeout(() => {
+                                if (state.players[data.targetId]) {
+                                    // respawn
+                                    respawnPlayer(data.targetId);
+                                }
+                            }, 1200);
+                            if (data.attackerId === state.localId) {
+                                // local player got a kill!
+                                state.myXp += 20;
+                                checkLevelUp();
+                                showToast('💀 +20 XP!', 1000);
+                                playSound('levelup');
+                            }
+                        }
+                    }
+                    break;
+                case 'level_up':
+                    // remote player leveled up
+                    if (data.id && data.id !== state.localId) {
+                        const p = state.players[data.id];
+                        if (p) {
+                            p.level = data.level || p.level;
+                            p.class = data.class || p.class;
+                            // update stats
+                            const clsData = CLASS_DATA[p.class];
+                            if (clsData) {
+                                p.maxHp = 100 + (p.level - 1) * 5;
+                                p.hp = p.maxHp;
+                            }
+                            showToast(`🌟 ${data.id.slice(0,8)} reached Lv.${data.level}!`, 2000);
+                            playSound('levelup');
+                        }
+                    }
+                    break;
+                case 'respawn':
+                    if (data.id === state.localId) {
+                        respawnLocal();
+                    } else if (state.players[data.id]) {
+                        respawnPlayer(data.id);
+                    }
+                    break;
+            }
+        }
+
+        // ─── PLAYER MANAGEMENT ──────────────────────────────────
+        function addPlayer(id, cls, isLocal) {
+            const data = CLASS_DATA[cls] || CLASS_DATA.Squire;
+            const hp = 100;
+            state.players[id] = {
+                id: id,
+                x: isLocal ? WORLD / 2 : 100 + Math.random() * 600,
+                y: isLocal ? WORLD / 2 : 100 + Math.random() * 600,
+                vx: 0,
+                vy: 0,
+                angle: 0,
+                class: cls,
+                level: 1,
+                xp: 0,
+                hp: hp,
+                maxHp: hp,
+                isAttacking: false,
+                attackTimer: 0,
+                cooldown: 0,
+                dashCooldown: 0,
+                score: 0,
+                kills: 0,
+                speed: data.speed,
+                dash: data.dash,
+                attackCooldown: data.attackCooldown,
+                attackDuration: data.attackDuration,
+                color: data.color,
+                weapon: data.weapon,
+                weaponW: data.weaponW,
+                weaponL: data.weaponL,
+                isLocal: isLocal || false,
+                alive: true,
+            };
+            if (isLocal) {
+                state.localId = id;
+                state.myClass = cls;
+                state.myLevel = 1;
+                state.myXp = 0;
+                state.xpToNext = 40;
+                updateHUD();
+            }
+            updateScoreboard();
+        }
+
+        function spawnLocalPlayer() {
+            const cls = state.myClass || 'Squire';
+            addPlayer(state.localId, cls, true);
+            state.localDead = false;
+            state.respawnTimer = 0;
+            updateHUD();
+        }
+
+        function dieLocal() {
+            state.localDead = true;
+            state.respawnTimer = 120; // frames
+            playSound('death');
+            showToast('💀 You died! Respawning…', 2000);
+            // Send death to others
+            sendData({ type: 'death', id: state.localId });
+        }
+
+        function respawnLocal() {
+            state.localDead = false;
+            const p = state.players[state.localId];
+            if (p) {
+                p.x = WORLD / 2 + (Math.random() - 0.5) * 300;
+                p.y = WORLD / 2 + (Math.random() - 0.5) * 300;
+                p.hp = p.maxHp || 100;
+                p.alive = true;
+                p.isAttacking = false;
+                p.attackTimer = 0;
+                p.cooldown = 0;
+                p.dashCooldown = 0;
+            }
+            showToast('🔄 Respawned!', 1000);
+            updateHUD();
+            sendData({ type: 'respawn', id: state.localId });
+        }
+
+        function respawnPlayer(id) {
+            const p = state.players[id];
+            if (p) {
+                p.x = 100 + Math.random() * (WORLD - 200);
+                p.y = 100 + Math.random() * (WORLD - 200);
+                p.hp = p.maxHp || 100;
+                p.alive = true;
+                p.isAttacking = false;
+                p.attackTimer = 0;
+                p.cooldown = 0;
+                p.dashCooldown = 0;
+            }
+        }
+
+        function getClassStats(cls) {
+            return CLASS_DATA[cls] || CLASS_DATA.Squire;
+        }
+
+        // ─── LEVELING ────────────────────────────────────────────
+        function getXpToLevel(level) {
+            return Math.floor(40 + level * 12 + Math.pow(level, 1.5) * 2);
+        }
+
+        function checkLevelUp() {
+            const needed = getXpToLevel(state.myLevel);
+            if (state.myXp >= needed) {
+                state.myXp -= needed;
+                state.myLevel++;
+                playSound('levelup');
+                showToast(`⬆ Level ${state.myLevel}!`, 1500);
+                // Show upgrade menu if level 30 or below 30 and multiple options
+                if (state.myLevel >= 30) {
+                    // Level 30: show evolution options (tier 2)
+                    showUpgradeOptions(true);
+                } else if (state.myLevel % 5 === 0 || state.myLevel === 10 || state.myLevel === 20) {
+                    // Show upgrade options
+                    showUpgradeOptions(false);
+                } else {
+                    // Just update stats
+                    updatePlayerStats(state.localId, state.myClass);
+                    updateHUD();
+                    // broadcast
+                    sendData({ type: 'level_up', id: state.localId, level: state.myLevel, class: state.myClass });
+                }
+                // Re-check in case multiple levels
+                const needed2 = getXpToLevel(state.myLevel);
+                if (state.myXp >= needed2) checkLevelUp();
+            }
+            updateHUD();
+        }
+
+        function showUpgradeOptions(isLvl30) {
+            state.showUpgrade = true;
+            const currentClass = state.myClass;
+            let options = [];
+
+            if (isLvl30) {
+                // Level 30: show all tier 2 classes that are evolutions of current or any base
+                // Actually, show all tier 2 classes as options, plus keep current
+                const base = Object.keys(CLASS_DATA).filter(k => CLASS_DATA[k].tier === 1);
+                const evos = Object.keys(CLASS_DATA).filter(k => CLASS_DATA[k].tier === 2);
+                // Add current class if it's tier 2
+                if (CLASS_DATA[currentClass] && CLASS_DATA[currentClass].tier === 2) {
+                    options.push(currentClass);
+                }
+                // Add all tier 2 classes
+                for (const e of evos) {
+                    if (!options.includes(e)) options.push(e);
+                }
+                // Also add some tier 1 as fallback
+                if (options.length < 3) {
+                    for (const b of base) {
+                        if (!options.includes(b)) options.push(b);
+                        if (options.length >= 4) break;
+                    }
+                }
+            } else {
+                // Regular upgrade: show class options
+                const allClasses = Object.keys(CLASS_DATA);
+                // Show 3 random options (tier 1 or 2 if already tier 2)
+                const pool = allClasses.filter(c => {
+                    const d = CLASS_DATA[c];
+                    if (d.tier === 2) {
+                        // Only show tier 2 if current is tier 2 or level >= 30
+                        return state.myLevel >= 30;
+                    }
+                    return true;
+                });
+                // Shuffle and pick 3
+                const shuffled = pool.sort(() => Math.random() - 0.5);
+                for (let i = 0; i < Math.min(3, shuffled.length); i++) {
+                    if (shuffled[i] !== currentClass) options.push(shuffled[i]);
+                }
+                if (options.length === 0) options.push('Squire', 'Duelist', 'Berserker');
+            }
+
+            // Ensure we have options
+            if (options.length === 0) options = ['Squire', 'Duelist', 'Berserker'];
+
+            state.upgradeOptions = options;
+            renderUpgradeMenu(options);
+            upgradeMenu.style.display = 'block';
+        }
+
+        function renderUpgradeMenu(options) {
+            upgradeBtns.innerHTML = '';
+            for (const cls of options) {
+                const data = CLASS_DATA[cls];
+                if (!data) continue;
+                const btn = document.createElement('button');
+                btn.className = 'upg-btn';
+                const isTier2 = data.tier === 2;
+                btn.style.background = data.color + '44';
+                btn.style.borderLeft = `6px solid ${data.color}`;
+                btn.innerHTML =
+                    `<span style="font-size:18px;">${isTier2 ? '⭐' : '◆'} ${cls}</span><span class="sub">⚔ ${data.weapon} · ${data.desc} ${isTier2 ? ' (★ Lv.30)' : ''}</span>`;
+                btn.addEventListener('click', () => {
+                    selectUpgrade(cls);
+                });
+                upgradeBtns.appendChild(btn);
+            }
+            // Cancel button
+            const cancel = document.createElement('button');
+            cancel.textContent = '✕ Stay current';
+            cancel.style.cssText =
+                'margin-top:12px;padding:8px 20px;background:#333;border:none;border-radius:6px;color:#aaa;cursor:pointer;font-size:14px;';
+            cancel.addEventListener('click', () => {
+                upgradeMenu.style.display = 'none';
+                state.showUpgrade = false;
+                updateHUD();
+            });
+            upgradeBtns.appendChild(cancel);
+        }
+
+        function selectUpgrade(cls) {
+            state.myClass = cls;
+            state.showUpgrade = false;
+            upgradeMenu.style.display = 'none';
+            // Update player stats
+            updatePlayerStats(state.localId, cls);
+            // Update class data for local player
+            const p = state.players[state.localId];
+            if (p) {
+                p.class = cls;
+                const data = CLASS_DATA[cls];
+                if (data) {
+                    p.color = data.color;
+                    p.weapon = data.weapon;
+                    p.weaponW = data.weaponW;
+                    p.weaponL = data.weaponL;
+                    p.speed = data.speed;
+                    p.dash = data.dash;
+                    p.attackCooldown = data.attackCooldown;
+                    p.attackDuration = data.attackDuration;
+                    p.maxHp = 100 + (state.myLevel - 1) * 5;
+                    p.hp = p.maxHp;
+                }
+            }
+            updateHUD();
+            showToast(`⬆ Evolved to ${cls}!`, 1500);
+            playSound('levelup');
+            // Broadcast
+            sendData({ type: 'level_up', id: state.localId, level: state.myLevel, class: cls });
+            // Also send full update
+            broadcastState();
+        }
+
+        function updatePlayerStats(id, cls) {
+            const p = state.players[id];
+            if (!p) return;
+            const data = CLASS_DATA[cls];
+            if (!data) return;
+            p.class = cls;
+            p.color = data.color;
+            p.weapon = data.weapon;
+            p.weaponW = data.weaponW;
+            p.weaponL = data.weaponL;
+            p.speed = data.speed;
+            p.dash = data.dash;
+            p.attackCooldown = data.attackCooldown;
+            p.attackDuration = data.attackDuration;
+            p.maxHp = 100 + (state.myLevel - 1) * 5;
+            if (p.hp > p.maxHp) p.hp = p.maxHp;
+        }
+
+        function updateHUD() {
+            const p = state.players[state.localId];
+            if (!p) return;
+            const cls = state.myClass;
+            const data = CLASS_DATA[cls];
+            const level = state.myLevel;
+            const needed = getXpToLevel(level);
+            const pct = Math.min(100, (state.myXp / needed) * 100);
+            levelTxt.textContent = `⚔ Lv.${level} ${cls}`;
+            classTag.textContent = cls;
+            xpFill.style.width = pct + '%';
+            if (p.hp !== undefined) {
+                // Show HP in status
+                const hpPct = Math.max(0, (p.hp / p.maxHp) * 100);
+                // Update scoreboard
+                updateScoreboard();
+            }
+        }
+
+        function updateScoreboard() {
+            let html = '';
+            const sorted = Object.entries(state.players).sort((a, b) => (b[1].kills || 0) - (a[1].kills || 0));
+            for (const [id, p] of sorted) {
+                const label = id === state.localId ? '⭐ ' : '';
+                const cls = p.class || '?';
+                html +=
+                    `<span class="score-item">${label}${cls} Lv.${p.level || 1} <span style="color:#ff8866;">${p.kills || 0}☠</span></span>`;
+            }
+            scoresEl.innerHTML = html || 'No players';
+        }
+
+        // ─── ATTACK SYSTEM ──────────────────────────────────────
+        function performAttack() {
+            const p = state.players[state.localId];
+            if (!p || p.isAttacking || p.cooldown > 0 || state.localDead) return;
+            if (!state.gameStarted) return;
+
+            const data = CLASS_DATA[state.myClass];
+            if (!data) return;
+
+            p.isAttacking = true;
+            p.attackTimer = data.attackDuration || 16;
+            p.cooldown = data.attackCooldown || 45;
+            p.angle = Math.atan2(state.mouse.y - p.y, state.mouse.x - p.x);
+
+            playSound('swing');
+
+            // Broadcast attack
+            sendData({
+                type: 'attack',
+                id: state.localId,
+                angle: p.angle,
+                duration: data.attackDuration || 16,
+                class: state.myClass
+            });
+
+            // Check for hits locally (host does hit detection)
+            if (state.isHost) {
+                const hitPlayers = getHitPlayers(p.x, p.y, p.angle, data.weaponL || 40, data.weaponW || 10);
+                for (const targetId of hitPlayers) {
+                    if (targetId === state.localId) continue;
+                    const target = state.players[targetId];
+                    if (!target || !target.alive) continue;
+                    const dmg = 15 + Math.floor(state.myLevel * 0.8);
+                    target.hp = (target.hp || 100) - dmg;
+                    playSound('hit');
+                    // Send hit notification
+                    sendData({ type: 'hit', targetId: targetId, attackerId: state.localId, damage: dmg });
+                    // Spawn particles
+                    spawnParticles(target.x, target.y, '#ff4444', 12);
+                    if (target.hp <= 0) {
+                        target.hp = 0;
+                        target.alive = false;
+                        // Award kill
+                        p.kills = (p.kills || 0) + 1;
+                        state.myXp += 25;
+                        checkLevelUp();
+                        showToast(`💀 +25 XP!`, 1000);
+                        playSound('levelup');
+                        // Respawn target after delay
+                        setTimeout(() => {
+                            if (state.players[targetId]) {
+                                respawnPlayer(targetId);
+                                sendData({ type: 'respawn', id: targetId });
+                            }
+                        }, 1500);
+                        // Broadcast death
+                        sendData({ type: 'death', id: targetId });
+                    }
+                    updateHUD();
+                    updateScoreboard();
+                }
+            }
+
+            // Spawn visual attack
+            spawnAttackVisual(state.localId, p.angle, state.myClass);
+        }
+
+        function getHitPlayers(ox, oy, angle, length, width) {
+            const hits = [];
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+            // Attack box is a rectangle extending from player
+            const startX = ox + cos * 20;
+            const startY = oy + sin * 20;
+            const endX = ox + cos * (20 + length);
+            const endY = oy + sin * (20 + length);
+
+            for (const [id, p] of Object.entries(state.players)) {
+                if (id === state.localId) continue;
+                if (!p.alive) continue;
+                // Check if point is near the attack line
+                const dx = p.x - startX;
+                const dy = p.y - startY;
+                const proj = dx * cos + dy * sin;
+                if (proj < -10 || proj > length + 10) continue;
+                const perp = -dx * sin + dy * cos;
+                if (Math.abs(perp) < width + PLAYER_RADIUS) {
+                    hits.push(id);
+                }
+            }
+            return hits;
+        }
+
+        function spawnAttackVisual(id, angle, cls) {
+            // Attack visual is handled in render
+            // We store the attack state in the player
+            const p = state.players[id];
+            if (p) {
+                p.isAttacking = true;
+                p.attackTimer = CLASS_DATA[cls]?.attackDuration || 16;
+                p.angle = angle;
+            }
+        }
+
+        function spawnParticles(x, y, color, count = 10) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * 2 * Math.PI;
+                const speed = 1 + Math.random() * 4;
+                state.particles.push({
+                    x,
+                    y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 30 + Math.random() * 30,
+                    maxLife: 60,
+                    size: 3 + Math.random() * 5,
+                    color: color,
+                });
+            }
+        }
+
+        // ─── CLASS TREE OVERLAY (Y key) ─────────────────────────
+        function buildTreeGrid() {
+            treeGrid.innerHTML = '';
+            // Show all classes with tier and evolution info
+            const all = Object.keys(CLASS_DATA);
+            // Group by tier
+            const tier1 = all.filter(k => CLASS_DATA[k].tier === 1);
+            const tier2 = all.filter(k => CLASS_DATA[k].tier === 2);
+
+            // Show tier 1 first
+            for (const name of tier1) {
+                const data = CLASS_DATA[name];
+                const card = document.createElement('div');
+                card.className = 'tree-card';
+                const preview = document.createElement('div');
+                preview.className = 'preview';
+                preview.style.background = data.color + '44';
+                preview.style.borderColor = data.color;
+                preview.textContent = '⚔';
+                const info = document.createElement('div');
+                info.className = 'info';
+                const evo = data.lvl30 ? ` → ${data.lvl30}` : '';
+                info.innerHTML =
+                    `<div class="name" style="color:${data.color};">${name} ${evo}</div><div class="weapon">⚔ ${data.weapon}</div><div class="desc">${data.desc}</div>`;
+                const badge = document.createElement('span');
+                badge.className = 'lvl-badge';
+                badge.textContent = 'Lv.1';
+                card.appendChild(preview);
+                card.appendChild(info);
+                card.appendChild(badge);
+                card.addEventListener('click', () => {
+                    showToast(`📖 ${name}: ${data.desc} · ${data.weapon}`, 2500);
+                });
+                treeGrid.appendChild(card);
+            }
+
+            // Tier 2 (level 30)
+            for (const name of tier2) {
+                const data = CLASS_DATA[name];
+                const card = document.createElement('div');
+                card.className = 'tree-card';
+                const preview = document.createElement('div');
+                preview.className = 'preview';
+                preview.style.background = data.color + '44';
+                preview.style.borderColor = data.color;
+                preview.textContent = '⭐';
+                const info = document.createElement('div');
+                info.className = 'info';
+                info.innerHTML =
+                    `<div class="name" style="color:${data.color};">★ ${name}</div><div class="weapon">⚔ ${data.weapon}</div><div class="desc">${data.desc}</div>`;
+                const badge = document.createElement('span');
+                badge.className = 'lvl-badge';
+                badge.textContent = 'Lv.30';
+                badge.style.background = '#ff8800';
+                card.appendChild(preview);
+                card.appendChild(info);
+                card.appendChild(badge);
+                card.addEventListener('click', () => {
+                    showToast(`🌟 ${name}: ${data.desc} · ${data.weapon}`, 2500);
+                });
+                treeGrid.appendChild(card);
+            }
+        }
+
+        // ─── RENDER ──────────────────────────────────────────────
+        function render() {
+            ctx.clearRect(0, 0, W, H);
+
+            // Camera follows local player
+            const local = state.players[state.localId];
+            if (local) {
+                state.camera.x = local.x - W / 2;
+                state.camera.y = local.y - H / 2;
+            }
+
+            const camX = state.camera.x;
+            const camY = state.camera.y;
+
+            // ── World grid ──
+            ctx.save();
+            ctx.translate(-camX, -camY);
+
+            // Grid
+            ctx.strokeStyle = '#2a2a44';
+            ctx.lineWidth = 1;
+            const step = 80;
+            for (let x = -step; x <= WORLD + step; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, -step);
+                ctx.lineTo(x, WORLD + step);
+                ctx.stroke();
+            }
+            for (let y = -step; y <= WORLD + step; y += step) {
+                ctx.beginPath();
+                ctx.moveTo(-step, y);
+                ctx.lineTo(WORLD + step, y);
+                ctx.stroke();
+            }
+
+            // Border
+            ctx.strokeStyle = '#555577';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(0, 0, WORLD, WORLD);
+
+            // ── Particles ──
+            for (const p of state.particles) {
+                const alpha = p.life / p.maxLife;
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // ── Players ──
+            for (const [id, p] of Object.entries(state.players)) {
+                if (!p.alive && !p.isLocal) continue;
+                const isLocal = id === state.localId;
+
+                // Shadow
+                ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                ctx.shadowBlur = 12;
+
+                // Body
+                const color = p.color || '#4488ff';
+                ctx.shadowBlur = 16;
+                ctx.shadowColor = color + '44';
+
+                // Circle
+                const grad = ctx.createRadialGradient(p.x - 6, p.y - 6, 4, p.x, p.y, PLAYER_RADIUS + 4);
+                grad.addColorStop(0, lightenColor(color, 40));
+                grad.addColorStop(1, color);
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, PLAYER_RADIUS, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Border
+                ctx.strokeStyle = isLocal ? '#ffcc00' : '#ffffff66';
+                ctx.lineWidth = isLocal ? 3 : 1.5;
+                ctx.stroke();
+
+                // Class icon
+                ctx.fillStyle = '#fff';
+                ctx.font = '16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const icon = p.class ? p.class[0] : '?';
+                ctx.fillText(icon, p.x, p.y - 2);
+
+                // ── Weapon / Attack ──
+                const angle = p.angle || 0;
+                const wLen = p.weaponL || 40;
+                const wWid = p.weaponW || 10;
+
+                if (p.isAttacking && p.attackTimer > 0) {
+                    // Attack swing
+                    const progress = 1 - (p.attackTimer / (p.attackDuration || 16));
+                    const swingAngle = angle + (progress - 0.5) * 1.2;
+                    const cos = Math.cos(swingAngle);
+                    const sin = Math.sin(swingAngle);
+                    const startX = p.x + cos * 20;
+                    const startY = p.y + sin * 20;
+                    const endX = p.x + cos * (20 + wLen);
+                    const endY = p.y + sin * (20 + wLen);
+
+                    // Glow trail
+                    ctx.shadowColor = '#ffcc44';
+                    ctx.shadowBlur = 30;
+                    ctx.strokeStyle = '#ffcc44aa';
+                    ctx.lineWidth = wWid + 8;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+
+                    // Main blade
+                    ctx.shadowColor = '#ffaa33';
+                    ctx.shadowBlur = 20;
+                    ctx.strokeStyle = '#ffdd88';
+                    ctx.lineWidth = wWid;
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+
+                    // Tip glow
+                    ctx.fillStyle = '#ffdd44';
+                    ctx.shadowBlur = 25;
+                    ctx.shadowColor = '#ffaa00';
+                    ctx.beginPath();
+                    ctx.arc(endX, endY, wWid * 0.6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    // Weapon name
+                    ctx.fillStyle = '#ffdd88';
+                    ctx.font = 'bold 11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(p.weapon || '⚔', (startX + endX) / 2, (startY + endY) / 2 - 14);
+                } else {
+                    // Idle weapon
+                    const cos = Math.cos(angle);
+                    const sin = Math.sin(angle);
+                    const startX = p.x + cos * 18;
+                    const startY = p.y + sin * 18;
+                    const endX = p.x + cos * (18 + wLen);
+                    const endY = p.y + sin * (18 + wLen);
+
+                    ctx.shadowColor = '#8888ff44';
+                    ctx.shadowBlur = 10;
+                    ctx.strokeStyle = '#aabbcc';
+                    ctx.lineWidth = wWid;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+
+                    // Small tip
+                    ctx.fillStyle = '#ccddff';
+                    ctx.beginPath();
+                    ctx.arc(endX, endY, wWid * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // HP bar
+                const hpPct = Math.max(0, (p.hp || 100) / (p.maxHp || 100));
+                const barW = 44;
+                const barH = 5;
+                const barX = p.x - barW / 2;
+                const barY = p.y - PLAYER_RADIUS - 12;
+                ctx.fillStyle = '#333';
+                ctx.fillRect(barX, barY, barW, barH);
+                const hpColor = hpPct > 0.5 ? '#44dd66' : hpPct > 0.25 ? '#ffaa33' : '#ff4444';
+                ctx.fillStyle = hpColor;
+                ctx.fillRect(barX, barY, barW * hpPct, barH);
+
+                // Name tag
+                ctx.fillStyle = isLocal ? '#ffcc00' : '#ddd';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                const label = isLocal ? '⭐ You' : (p.class || '?') + ' Lv.' + (p.level || 1);
+                ctx.fillText(label, p.x, barY - 4);
+
+                // Level badge
+                ctx.fillStyle = '#ffcc00aa';
+                ctx.font = '10px sans-serif';
+                ctx.textBaseline = 'top';
+                ctx.fillText('Lv.' + (p.level || 1), p.x + PLAYER_RADIUS + 4, p.y - 8);
+
+                ctx.shadowBlur = 0;
+            }
+
+            // ── Projectiles / attack visuals from others ──
+            // (Attack visuals are handled via player attack state)
+
+            ctx.restore();
+
+            // ── UI overlay (HUD extras) ──
+            // Crosshair
+            const mx = state.mouse.x;
+            const my = state.mouse.y;
+            ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(mx, my, 6, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(mx - 12, my);
+            ctx.lineTo(mx + 12, my);
+            ctx.moveTo(mx, my - 12);
+            ctx.lineTo(mx, my + 12);
+            ctx.stroke();
+
+            // FPS / info
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.font = '12px monospace';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            const players = Object.keys(state.players).length;
+            ctx.fillText(`👥 ${players}  ·  ${state.roomCode || '---'}`, W - 14, H - 10);
+
+            // Tree hint
+            if (!state.showTree) {
+                ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                ctx.font = '13px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText('[Y] Class Tree', 14, H - 10);
+            }
+        }
+
+        // ─── HELPERS ─────────────────────────────────────────────
+        function lightenColor(hex, amt) {
+            let r = parseInt(hex.slice(1, 2), 16) * 17 || parseInt(hex.slice(1, 3), 16) || 0;
+            let g = parseInt(hex.slice(2, 3), 16) * 17 || parseInt(hex.slice(3, 5), 16) || 0;
+            let b = parseInt(hex.slice(3, 4), 16) * 17 || parseInt(hex.slice(5, 7), 16) || 0;
+            if (hex.length === 7) {
+                r = parseInt(hex.slice(1, 3), 16);
+                g = parseInt(hex.slice(3, 5), 16);
+                b = parseInt(hex.slice(5, 7), 16);
+            }
+            r = Math.min(255, r + amt);
+            g = Math.min(255, g + amt);
+            b = Math.min(255, b + amt);
+            return `rgb(${r},${g},${b})`;
+        }
+
+        // ─── GAME LOOP ────────────────────────────────────────────
+        function update() {
+            const local = state.players[state.localId];
+            if (!local || state.localDead) {
+                // Respawn timer
+                if (state.localDead) {
+                    state.respawnTimer--;
+                    if (state.respawnTimer <= 0) {
+                        respawnLocal();
+                    }
+                }
+                // Still update particles
+                updateParticles();
+                return;
+            }
+
+            // ── Movement ──
+            let dx = 0,
+                dy = 0;
+            if (state.keys['w'] || state.keys['arrowup']) dy = -1;
+            if (state.keys['s'] || state.keys['arrowdown']) dy = 1;
+            if (state.keys['a'] || state.keys['arrowleft']) dx = -1;
+            if (state.keys['d'] || state.keys['arrowright']) dx = 1;
+            if (dx !== 0 && dy !== 0) {
+                dx *= 0.707;
+                dy *= 0.707;
+            }
+
+            const speed = local.speed || 4.8;
+            const dashMult = local.dashCooldown > 0 ? 1 : 1;
+            const dashActive = state.keys['shift'] && local.dashCooldown <= 0 && (dx !== 0 || dy !== 0);
+            if (dashActive) {
+                // Dash
+                const dashSpeed = (local.dash || 14);
+                local.x += dx * dashSpeed * 2.2;
+                local.y += dy * dashSpeed * 2.2;
+                local.dashCooldown = 60;
+                playSound('dash');
+                spawnParticles(local.x, local.y, '#88ddff', 8);
+                // Broadcast dash
+                sendData({ type: 'player_update', id: state.localId, update: { x: local.x, y: local.y } });
+            } else {
+                local.x += dx * speed;
+                local.y += dy * speed;
+            }
+
+            // Clamp to world
+            local.x = Math.max(PLAYER_RADIUS, Math.min(WORLD - PLAYER_RADIUS, local.x));
+            local.y = Math.max(PLAYER_RADIUS, Math.min(WORLD - PLAYER_RADIUS, local.y));
+
+            // Update angle (mouse)
+            const angle = Math.atan2(state.mouse.y - local.y + state.camera.y, state.mouse.x - local.x + state.camera.x);
+            local.angle = angle;
+
+            // ── Cooldowns ──
+            if (local.cooldown > 0) local.cooldown--;
+            if (local.dashCooldown > 0) local.dashCooldown--;
+            if (local.attackTimer > 0) {
+                local.attackTimer--;
+                if (local.attackTimer === 0) {
+                    local.isAttacking = false;
+                }
+            }
+
+            // ── Attack ──
+            if (state.mouse.down && local.cooldown <= 0 && !local.isAttacking) {
+                performAttack();
+            }
+
+            // ── Broadcast updates ──
+            if (state.isHost) {
+                // Host broadcasts sync periodically
+                if (Math.random() < 0.02) {
+                    broadcastState();
+                }
+                // Also send player updates
+                sendData({
+                    type: 'player_update',
+                    id: state.localId,
+                    update: { x: local.x, y: local.y, angle: local.angle, hp: local.hp }
+                });
+            } else {
+                // Client sends updates more frequently
+                if (Math.random() < 0.04) {
+                    sendData({
+                        type: 'player_update',
+                        id: state.localId,
+                        update: { x: local.x, y: local.y, angle: local.angle, hp: local.hp }
+                    });
+                }
+            }
+
+            // ── Update particles ──
+            updateParticles();
+
+            // ── Update HUD ──
+            updateHUD();
+            updateScoreboard();
+        }
+
+        function updateParticles() {
+            for (let i = state.particles.length - 1; i >= 0; i--) {
+                const p = state.particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vx *= 0.96;
+                p.vy *= 0.96;
+                p.life--;
+                if (p.life <= 0) {
+                    state.particles.splice(i, 1);
+                }
+            }
+        }
+
+        // ─── MAIN LOOP ────────────────────────────────────────────
+        function loop() {
+            update();
+            render();
+            requestAnimationFrame(loop);
+        }
+
+        // ─── INPUT ────────────────────────────────────────────────
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            state.keys[key] = true;
+            if (key === 'y') {
+                e.preventDefault();
+                toggleTree();
+            }
+            if (key === 'shift') {
+                // dash is handled in update
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            state.keys[key] = false;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            state.mouse.x = e.clientX - rect.left;
+            state.mouse.y = e.clientY - rect.top;
+        });
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                state.mouse.down = true;
+                initAudio();
+            }
+        });
+        canvas.addEventListener('mouseup', (e) => {
+            if (e.button === 0) {
+                state.mouse.down = false;
+            }
+        });
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Prevent scrolling with arrows
+        window.addEventListener('keydown', (e) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+
+        // ─── TREE TOGGLE ─────────────────────────────────────────
+        function toggleTree() {
+            state.showTree = !state.showTree;
+            if (state.showTree) {
+                buildTreeGrid();
+                treeOverlay.style.display = 'block';
+            } else {
+                treeOverlay.style.display = 'none';
+            }
+        }
+
+        document.getElementById('tree-close-btn').addEventListener('click', () => {
+            state.showTree = false;
+            treeOverlay.style.display = 'none';
+        });
+
+        // ─── START ───────────────────────────────────────────────
+        // Pre-build tree
+        buildTreeGrid();
+
+        // Show initial status
+        statusEl.textContent = '💡 Host or join a game to start.';
+
+        // Start game loop
+        loop();
+
+        // ─── AUTO-JOIN DEMO (optional) ──────────────────────────
+        // If there's a code in URL params, auto-join
+        const params = new URLSearchParams(window.location.search);
+        const autoCode = params.get('code');
+        if (autoCode && autoCode.length === 5) {
+            document.getElementById('join-id').value = autoCode.toUpperCase();
+            setTimeout(() => document.getElementById('join-btn').click(), 300);
+        }
+
+        console.log('🎮 pol.io loaded — Press Y for class tree!');
+        console.log('📋 Base classes:', BASE_CLASSES);
+        console.log('⭐ Level 30 classes:', LVL30_CLASSES);
+    </script>
+</body>
+</html>
