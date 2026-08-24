@@ -4,25 +4,34 @@
   <meta charset="UTF-8" />
   <title>pol.io</title>
   <style>
-    body { margin: 0; background: #222; color: #fff; font-family: sans-serif; overflow: hidden; user-select: none; }
-    canvas { border: 2px solid #555; background: #333; cursor: crosshair; display: block; margin: 0 auto; }
+    body { margin: 0; background: #1a1a1a; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; user-select: none; }
+    canvas { border: 2px solid #333; background: #222; cursor: crosshair; display: block; margin: 0 auto; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
     
     #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-    #menu-container { pointer-events: auto; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); text-align: center; background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 8px; z-index: 10; }
+    #menu-container { pointer-events: auto; position: absolute; top: 15px; left: 50%; transform: translateX(-50%); text-align: center; background: rgba(15, 15, 20, 0.9); padding: 15px 25px; border-radius: 8px; z-index: 10; border: 1px solid #444; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
     
-    input, button { padding: 8px; font-size: 14px; margin: 2px; cursor: pointer; border-radius: 4px; border: 1px solid #777; background: #444; color: white;}
-    button:hover { background: #666; }
-    #scores { margin-top: 5px; font-weight: bold; color: #ffcc00; }
-    p { margin: 5px 0 0 0; font-size: 13px; }
+    input, button { padding: 8px 12px; font-size: 14px; margin: 2px; cursor: pointer; border-radius: 4px; border: 1px solid #666; background: #333; color: white; transition: 0.2s; }
+    button:hover { background: #555; border-color: #00ffcc; }
+    #scores { margin-top: 10px; font-weight: bold; color: #ffcc00; font-size: 14px; }
+    p { margin: 5px 0 0 0; font-size: 13px; color: #ccc; }
 
-    #hud { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); text-align: center; width: 400px; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px; display: none; }
-    #xp-bar-bg { width: 100%; height: 20px; background: #444; border-radius: 10px; overflow: hidden; margin-top: 5px; border: 2px solid #222; }
-    #xp-bar-fill { height: 100%; background: #ffcc00; width: 0%; transition: width 0.2s; }
-    #level-txt { font-weight: bold; font-size: 18px; margin: 0; }
+    #hud { position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); text-align: center; width: 450px; background: rgba(10, 10, 15, 0.85); padding: 12px; border-radius: 12px; border: 1px solid #444; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.6); }
+    #xp-bar-bg { width: 100%; height: 18px; background: #222; border-radius: 9px; overflow: hidden; margin-top: 8px; border: 1px solid #111; }
+    #xp-bar-fill { height: 100%; background: linear-gradient(90deg, #ff9900, #ffcc00); width: 0%; transition: width 0.3s ease-out; }
+    #level-txt { font-weight: bold; font-size: 18px; margin: 0; color: #fff; text-shadow: 1px 1px 2px #000; }
 
-    #upgrade-menu { pointer-events: auto; position: absolute; top: 20%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 20px; border-radius: 10px; border: 2px solid #fff; display: none; text-align: center; }
-    .upg-btn { display: block; width: 250px; margin: 10px auto; padding: 10px; font-size: 16px; font-weight: bold; border: none; border-radius: 5px; color: white; text-shadow: 1px 1px 2px black; cursor: pointer;}
-    .upg-btn:hover { filter: brightness(1.2); }
+    /* UPGRADE MENU MOVED TO TOP LEFT */
+    #upgrade-menu { 
+      pointer-events: auto; position: absolute; 
+      top: 15px; left: 15px; /* Moved to top left */
+      background: rgba(15, 15, 25, 0.95); padding: 20px; 
+      border-radius: 10px; border: 2px solid #555; 
+      display: none; text-align: left; 
+      box-shadow: 0 5px 20px rgba(0,0,0,0.8);
+    }
+    #upg-title { margin: 0 0 10px 0; font-size: 18px; color: #00ffcc; text-shadow: 1px 1px 3px black; }
+    .upg-btn { display: block; width: 220px; margin: 8px 0; padding: 12px; font-size: 16px; font-weight: bold; border: 2px solid rgba(0,0,0,0.5); border-radius: 6px; color: white; text-shadow: 1px 1px 2px black; cursor: pointer; text-align: center; transition: 0.1s;}
+    .upg-btn:hover { filter: brightness(1.2); transform: scale(1.02); }
   </style>
 </head>
 <body>
@@ -30,20 +39,20 @@
   <div id="ui-layer">
     <div id="menu-container">
       <div id="menu">
-        <h2 style="margin: 0 0 10px 0; color: #00ffcc;">pol.io</h2>
+        <h2 style="margin: 0 0 10px 0; color: #00ffcc; font-size: 24px; text-shadow: 0 0 10px rgba(0,255,204,0.4);">pol.io</h2>
         <button id="host-btn">Host Private Game</button>
-        <span> OR </span>
-        <input type="text" id="join-id" placeholder="5-Letter Code" maxlength="5" style="text-transform:uppercase; width: 120px;" />
-        <button id="join-btn">Join Private Game</button>
+        <span style="margin: 0 8px;">OR</span>
+        <input type="text" id="join-id" placeholder="5-Letter Code" maxlength="5" style="text-transform:uppercase; width: 110px;" />
+        <button id="join-btn">Join Game</button>
       </div>
       <p id="status">Status: Waiting...</p>
-      <p style="font-size: 11px; color: #aaa;">Hold [Y] for Class Tree</p>
+      <p style="font-size: 11px; color: #888;">Hold [Y] to view the Class Tree</p>
       <div id="scores"></div>
     </div>
 
     <div id="upgrade-menu">
       <h2 id="upg-title">Upgrade Available!</h2>
-      <p>Choose your path:</p>
+      <p style="margin-bottom: 15px;">Choose your path:</p>
       <div id="upgrade-buttons"></div>
     </div>
 
@@ -63,20 +72,48 @@
     window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
 
     const WORLD_SIZE = 2000;
+    
+    // MASSIVE 31-CLASS DICTIONARY
     const CLASSES = {
+      // TIER 1 (Lvl 1)
       "Squire":     { color: "#3366ff", size: 30, speed: 5,   dash: 15, swingTicks: 15, cooldown: 60, w: 10, l: 30 },
+      
+      // TIER 2 (Lvl 5)
       "Guardian":   { color: "#00cc00", size: 30, speed: 3.5, dash: 10, swingTicks: 20, cooldown: 60, w: 45, l: 12 }, 
       "Duelist":    { color: "#00ffff", size: 30, speed: 7,   dash: 20, swingTicks: 10, cooldown: 40, w: 8,  l: 55 },
       "Berserker":  { color: "#ff0000", size: 30, speed: 3.5, dash: 12, swingTicks: 25, cooldown: 80, w: 25, l: 45 },
       "Warden":     { color: "#ffff00", size: 30, speed: 5,   dash: 15, swingTicks: 15, cooldown: 60, w: 10, l: 30, trapRate: 600 }, 
-      "Juggernaut": { color: "#005500", size: 40, speed: 2.5, dash: 8,  swingTicks: 25, cooldown: 60, w: 60, l: 18 },
+      
+      // TIER 3 (Lvl 15)
+      "Juggernaut": { color: "#005500", size: 40, speed: 2.5, dash: 8,  swingTicks: 30, cooldown: 60, w: 60, l: 18 },
       "Reflector":  { color: "#88ff88", size: 30, speed: 4,   dash: 10, swingTicks: 15, cooldown: 60, w: 40, l: 10 },
       "Hurricane":  { color: "#99ccff", size: 30, speed: 8,   dash: 22, swingTicks: 20, cooldown: 30, w: 8,  l: 45, spins: true },
       "Spearman":   { color: "#008888", size: 30, speed: 6,   dash: 18, swingTicks: 15, cooldown: 50, w: 6,  l: 85 },
       "Executioner":{ color: "#880000", size: 30, speed: 3,   dash: 10, swingTicks: 30, cooldown: 90, w: 50, l: 40 }, 
-      "Flailer":    { color: "#ff8800", size: 30, speed: 4,   dash: 12, swingTicks: 20, cooldown: 70, w: 20, l: 65 }, 
+      "Flailer":    { color: "#ff8800", size: 30, speed: 4,   dash: 12, swingTicks: 20, cooldown: 70, w: 20, l: 65, spins: true }, 
       "Minefield":  { color: "#ffcc00", size: 30, speed: 5,   dash: 15, swingTicks: 15, cooldown: 60, w: 10, l: 30, trapRate: 200 },
-      "Gunblade":   { color: "#aa00ff", size: 30, speed: 5,   dash: 15, swingTicks: 20, cooldown: 60, w: 10, l: 20, shoots: true } 
+      "Gunblade":   { color: "#aa00ff", size: 30, speed: 5,   dash: 15, swingTicks: 20, cooldown: 60, w: 10, l: 20, shoots: true },
+      
+      // TIER 4 (Lvl 30) - THE FINAL EVOLUTIONS
+      "Behemoth":   { color: "#002200", size: 55, speed: 1.5, dash: 5,  swingTicks: 40, cooldown: 90, w: 80, l: 25 },
+      "Fortress":   { color: "#335533", size: 40, speed: 2,   dash: 6,  swingTicks: 20, cooldown: 50, w: 90, l: 15 },
+      "Mirror":     { color: "#ccffcc", size: 30, speed: 4,   dash: 10, swingTicks: 15, cooldown: 50, w: 45, l: 10, spins: true },
+      "Deflector":  { color: "#aaffaa", size: 35, speed: 3.5, dash: 10, swingTicks: 15, cooldown: 40, w: 60, l: 15 },
+      
+      "Typhoon":    { color: "#e6f2ff", size: 35, speed: 9,   dash: 25, swingTicks: 25, cooldown: 25, w: 12, l: 60, spins: true },
+      "Cyclone":    { color: "#3399ff", size: 25, speed: 10,  dash: 28, swingTicks: 15, cooldown: 20, w: 6,  l: 35, spins: true },
+      "Lancer":     { color: "#004444", size: 30, speed: 7,   dash: 25, swingTicks: 10, cooldown: 40, w: 4,  l: 110 },
+      "Pikeman":    { color: "#00cccc", size: 35, speed: 5,   dash: 15, swingTicks: 20, cooldown: 50, w: 14, l: 80 },
+      
+      "Guillotine": { color: "#440000", size: 35, speed: 2.5, dash: 8,  swingTicks: 40, cooldown: 110, w: 70, l: 50 },
+      "Reaper":     { color: "#cc0000", size: 30, speed: 4.5, dash: 14, swingTicks: 15, cooldown: 60,  w: 40, l: 55 },
+      "WreckingBall":{ color: "#cc6600", size: 40, speed: 3,  dash: 10, swingTicks: 30, cooldown: 80,  w: 35, l: 80, spins: true },
+      "Meteor":     { color: "#ffaa00", size: 25, speed: 5,   dash: 15, swingTicks: 12, cooldown: 50,  w: 15, l: 50, spins: true },
+      
+      "Trapper":    { color: "#ffff66", size: 35, speed: 4,   dash: 12, swingTicks: 15, cooldown: 60, w: 15, l: 30, trapRate: 100 },
+      "Spike":      { color: "#ccaa00", size: 30, speed: 6,   dash: 18, swingTicks: 15, cooldown: 60, w: 10, l: 20, trapRate: 150 },
+      "Artillery":  { color: "#660099", size: 40, speed: 3,   dash: 10, swingTicks: 40, cooldown: 60, w: 15, l: 30, shoots: true },
+      "Sniper":     { color: "#dd88ff", size: 25, speed: 6,   dash: 20, swingTicks: 15, cooldown: 40, w: 6,  l: 40, shoots: true }
     };
 
     const UPGRADE_PATHS = {
@@ -86,6 +123,16 @@
         "Duelist": ["Hurricane", "Spearman"],
         "Berserker": ["Executioner", "Flailer"],
         "Warden": ["Minefield", "Gunblade"]
+      },
+      30: {
+        "Juggernaut": ["Behemoth", "Fortress"],
+        "Reflector": ["Mirror", "Deflector"],
+        "Hurricane": ["Typhoon", "Cyclone"],
+        "Spearman": ["Lancer", "Pikeman"],
+        "Executioner": ["Guillotine", "Reaper"],
+        "Flailer": ["WreckingBall", "Meteor"],
+        "Minefield": ["Trapper", "Spike"],
+        "Gunblade": ["Artillery", "Sniper"]
       }
     };
 
@@ -93,24 +140,16 @@
     let isHost = false, hostConn = null, clientConns = [], myPlayerId = 0; 
     let gameState = { players: {}, particles: [], orbs: [], traps: [], bullets: [] };
     let lastNetTime = 0, lastClientTime = 0; 
-    const keys = {}; let isAttacking = false, mouseX = 0, mouseY = 0;
-    let showTree = false;
+    const keys = {}; let isAttacking = false, mouseX = 0, mouseY = 0, showTree = false;
 
-    window.addEventListener("keydown", (e) => { 
-        keys[e.code] = true; 
-        if (e.key.toLowerCase() === 'y') showTree = true;
-    });
-    window.addEventListener("keyup", (e) => { 
-        keys[e.code] = false; 
-        if (e.key.toLowerCase() === 'y') showTree = false;
-    });
+    window.addEventListener("keydown", (e) => { keys[e.code] = true; if (e.key.toLowerCase() === 'y') showTree = true; });
+    window.addEventListener("keyup", (e) => { keys[e.code] = false; if (e.key.toLowerCase() === 'y') showTree = false; });
     canvas.addEventListener("mousedown", () => isAttacking = true);
     canvas.addEventListener("mouseup", () => isAttacking = false);
     canvas.addEventListener("mousemove", (e) => { mouseX = e.clientX; mouseY = e.clientY; });
 
     function getMouseDir() {
-      let dx = mouseX - (canvas.width / 2);
-      let dy = mouseY - (canvas.height / 2);
+      let dx = mouseX - (canvas.width / 2); let dy = mouseY - (canvas.height / 2);
       if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
       return dy > 0 ? "down" : "up";
     }
@@ -128,12 +167,15 @@
       let btns = document.getElementById("upgrade-buttons");
       let options = [];
 
-      if (p.level >= 5 && p.className === "Squire") {
-        options = UPGRADE_PATHS[5]["Squire"];
-        document.getElementById("upg-title").innerText = "Level 5 - Choose your Class!";
+      if (p.level >= 5 && UPGRADE_PATHS[5][p.className]) {
+        options = UPGRADE_PATHS[5][p.className];
+        document.getElementById("upg-title").innerText = "Level 5 - Class Upgrade!";
       } else if (p.level >= 15 && UPGRADE_PATHS[15][p.className]) {
         options = UPGRADE_PATHS[15][p.className];
-        document.getElementById("upg-title").innerText = "Level 15 - Choose your Evolution!";
+        document.getElementById("upg-title").innerText = "Level 15 - Evolution!";
+      } else if (p.level >= 30 && UPGRADE_PATHS[30][p.className]) {
+        options = UPGRADE_PATHS[30][p.className];
+        document.getElementById("upg-title").innerText = "Level 30 - Final Form!";
       }
 
       if (options.length > 0) {
@@ -156,24 +198,20 @@
       else hostConn.send({ type: "upgrade", newClass: newClass });
     }
 
+    // Networking Setup
     document.getElementById("host-btn").onclick = () => {
       isHost = true; document.getElementById("menu").style.display = "none";
       document.getElementById("status").innerText = "HOST CODE: " + peer.id;
       addPlayer(0); myPlayerId = 0;
       peer.on("connection", (conn) => {
         if (clientConns.length >= 3) return conn.close();
-        let newId = clientConns.length + 1; clientConns.push(conn);
-        addPlayer(newId);
+        let newId = clientConns.length + 1; clientConns.push(conn); addPlayer(newId);
         conn.on("open", () => conn.send({ type: "init", id: newId }));
         conn.on("data", (data) => {
           if (data.type === "input" && gameState.players[newId]) {
-            gameState.players[newId].keys = data.keys;
-            gameState.players[newId].wantsAttack = data.attack;
-            gameState.players[newId].mouseDir = data.mouseDir;
+            gameState.players[newId].keys = data.keys; gameState.players[newId].wantsAttack = data.attack; gameState.players[newId].mouseDir = data.mouseDir;
           }
-          if (data.type === "upgrade" && gameState.players[newId]) {
-            gameState.players[newId].className = data.newClass;
-          }
+          if (data.type === "upgrade" && gameState.players[newId]) gameState.players[newId].className = data.newClass;
         });
       });
     };
@@ -181,8 +219,7 @@
     document.getElementById("join-btn").onclick = () => {
       let hostId = document.getElementById("join-id").value.trim().toUpperCase();
       if (!hostId) return;
-      document.getElementById("menu").style.display = "none";
-      document.getElementById("status").innerText = "Connecting...";
+      document.getElementById("menu").style.display = "none"; document.getElementById("status").innerText = "Connecting...";
       hostConn = peer.connect(hostId);
       hostConn.on("open", () => document.getElementById("status").innerText = "CONNECTED!");
       hostConn.on("data", (data) => {
@@ -201,15 +238,12 @@
 
     function getWeaponRectRaw(className, px, py, dir, s, w, l, isAttackingVisual) {
       let offset = isAttackingVisual ? 15 : 0;
-      let alignX = px + (s/2) - (w/2);
-      let alignY = py + (s/2) - (w/2);
+      let alignX = px + (s/2) - (w/2); let alignY = py + (s/2) - (w/2);
       let boxes = [];
       
       if (CLASSES[className].spins && isAttackingVisual) {
-        boxes.push({ x: alignX, y: py - l - offset, w: w, h: l }); 
-        boxes.push({ x: alignX, y: py + s + offset, w: w, h: l }); 
-        boxes.push({ x: px - l - offset, y: alignY, w: l, h: w }); 
-        boxes.push({ x: px + s + offset, y: alignY, w: l, h: w });
+        boxes.push({ x: alignX, y: py - l - offset, w: w, h: l }); boxes.push({ x: alignX, y: py + s + offset, w: w, h: l }); 
+        boxes.push({ x: px - l - offset, y: alignY, w: l, h: w }); boxes.push({ x: px + s + offset, y: alignY, w: l, h: w });
         return boxes;
       }
       
@@ -221,8 +255,7 @@
     }
 
     function getWeaponRect(p, isAttackingVisual = false) {
-      let stats = CLASSES[p.className];
-      let dir = isAttackingVisual ? p.dir : p.mouseDir;
+      let stats = CLASSES[p.className]; let dir = isAttackingVisual ? p.dir : p.mouseDir;
       return getWeaponRectRaw(p.className, p.x, p.y, dir, stats.size, stats.w, stats.l, isAttackingVisual);
     }
 
@@ -232,10 +265,7 @@
 
     function updatePhysics() {
       if (!isHost) return;
-      if (gameState.players[0]) {
-        gameState.players[0].keys = keys; gameState.players[0].wantsAttack = isAttacking; gameState.players[0].mouseDir = getMouseDir();
-      }
-
+      if (gameState.players[0]) { gameState.players[0].keys = keys; gameState.players[0].wantsAttack = isAttacking; gameState.players[0].mouseDir = getMouseDir(); }
       if (Math.random() < 0.05 && gameState.orbs.length < 100) gameState.orbs.push({ x: Math.random()*(WORLD_SIZE-40)+20, y: Math.random()*(WORLD_SIZE-40)+20, size: 10 });
       
       for (let i = gameState.bullets.length - 1; i >= 0; i--) {
@@ -246,18 +276,14 @@
           if (b.owner !== tId) {
             let t = gameState.players[tId]; let tSize = CLASSES[t.className].size;
             if (checkHit(bRect, {x: t.x, y: t.y, w: tSize, h: tSize})) {
-              t.hp -= 15;
+              t.hp -= 20; b.life = 0;
               if (t.hp <= 0) { gameState.players[b.owner].score++; addXP(gameState.players[b.owner], 3.0); t.hp = 100; t.x = Math.random()*(WORLD_SIZE-100)+50; t.y = Math.random()*(WORLD_SIZE-100)+50; }
-              b.life = 0;
             }
           }
         });
       }
       
-      for (let i = gameState.traps.length - 1; i >= 0; i--) {
-        gameState.traps[i].life--;
-        if (gameState.traps[i].life <= 0) gameState.traps.splice(i, 1);
-      }
+      for (let i = gameState.traps.length - 1; i >= 0; i--) { gameState.traps[i].life--; if (gameState.traps[i].life <= 0) gameState.traps.splice(i, 1); }
 
       const pIds = Object.keys(gameState.players);
       pIds.forEach(id => {
@@ -276,7 +302,7 @@
 
         gameState.traps.forEach(trap => {
           if (trap.owner !== id && checkHit({x: p.x, y: p.y, w: size, h: size}, {x: trap.x, y: trap.y, w: 30, h: 30})) {
-            p.hp -= 1.5; 
+            p.hp -= 2.0; 
             if (p.hp <= 0) { p.hp = 100; p.x = Math.random()*(WORLD_SIZE-100)+50; p.y = Math.random()*(WORLD_SIZE-100)+50; if (gameState.players[trap.owner]) { gameState.players[trap.owner].score++; addXP(gameState.players[trap.owner], 3.0); } }
           }
         });
@@ -284,8 +310,8 @@
         if (p.wantsAttack && p.swingTimer === 0 && p.dashTimer <= 0) {
           p.dir = p.mouseDir; p.swingTimer = stats.swingTicks; 
           if (stats.shoots) {
-            let bvx = 0, bvy = 0;
-            if (p.dir === "up") bvy = -12; if (p.dir === "down") bvy = 12; if (p.dir === "left") bvx = -12; if (p.dir === "right") bvx = 12;
+            let bSpeed = p.className === "Sniper" ? 20 : 12; let bvx = 0, bvy = 0;
+            if (p.dir === "up") bvy = -bSpeed; if (p.dir === "down") bvy = bSpeed; if (p.dir === "left") bvx = -bSpeed; if (p.dir === "right") bvx = bSpeed;
             gameState.bullets.push({ x: p.x + size/2 - 5, y: p.y + size/2 - 5, vx: bvx, vy: bvy, life: 100, owner: id });
           }
 
@@ -311,60 +337,57 @@
       let now = Date.now();
       if (now - lastNetTime > 16) { clientConns.forEach(c => { if (c.open) c.send({ type: "state", state: gameState }); }); lastNetTime = now; }
       
-      let txt = "";
-      Object.keys(gameState.players).forEach(i => { txt += `<span style="color:${CLASSES[gameState.players[i].className].color}">Player ${parseInt(i)+1}: Lvl ${gameState.players[i].level}</span> | `; });
+      let txt = ""; Object.keys(gameState.players).forEach(i => { txt += `<span style="color:${CLASSES[gameState.players[i].className].color}">Player ${parseInt(i)+1}: Lvl ${gameState.players[i].level}</span> | `; });
       document.getElementById("scores").innerHTML = txt.slice(0, -2);
     }
 
     function renderStaticTank(ctx, className, x, y) {
       let stats = CLASSES[className];
-      let hitboxes = getWeaponRectRaw(className, x - stats.size/2, y - stats.size/2, "right", stats.size, stats.w, stats.l, false);
-      ctx.fillStyle = "#999999";
-      hitboxes.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
-      ctx.fillStyle = stats.color; 
-      ctx.fillRect(x - stats.size/2, y - stats.size/2, stats.size, stats.size);
-      ctx.strokeStyle = "#000"; ctx.lineWidth = 3; ctx.strokeRect(x - stats.size/2, y - stats.size/2, stats.size, stats.size);
       
-      ctx.fillStyle = "#fff";
-      ctx.font = "14px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(className, x, y + stats.size/2 + 20);
+      // Dynamic text offset so weapons NEVER overlap text!
+      let textOffset = stats.size/2 + 20;
+      if (stats.spins) textOffset = stats.l + 18; 
+      else if (stats.w > stats.size) textOffset = stats.w/2 + 18; // Wide shields
+
+      let hitboxes = getWeaponRectRaw(className, x - stats.size/2, y - stats.size/2, "right", stats.size, stats.w, stats.l, stats.spins); 
+      ctx.fillStyle = "#888"; hitboxes.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
+      ctx.fillStyle = stats.color; ctx.fillRect(x - stats.size/2, y - stats.size/2, stats.size, stats.size);
+      ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.strokeRect(x - stats.size/2, y - stats.size/2, stats.size, stats.size);
+      
+      ctx.fillStyle = "#fff"; ctx.font = "12px sans-serif"; ctx.textAlign = "center";
+      ctx.fillText(className, x, y + textOffset);
     }
 
     function drawClassTree() {
-      ctx.fillStyle = "rgba(0,0,0,0.85)";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "rgba(15,15,20,0.95)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      let cx = canvas.width / 2; let cy = canvas.height / 2; let sX = 200; 
       
-      let cx = canvas.width / 2;
-      let cy = canvas.height / 2;
-      
-      ctx.fillStyle = "#ffcc00";
-      ctx.font = "bold 24px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText("CLASS UPGRADE TREE", cx, 50);
+      ctx.fillStyle = "#00ffcc"; ctx.font = "bold 28px sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("FULL EVOLUTION TREE", cx, 40);
 
-      let spacingX = 250;
-      let spacingY = 120;
-      
-      let startX = cx - spacingX;
-      renderStaticTank(ctx, "Squire", startX, cy);
+      let ySquire = cy;
+      renderStaticTank(ctx, "Squire", cx - sX*1.5, ySquire);
+      let paths5 = UPGRADE_PATHS[5]["Squire"];
 
-      let level5 = ["Guardian", "Duelist", "Berserker", "Warden"];
-      level5.forEach((l5Class, i) => {
-        let l5Y = cy + (i - 1.5) * spacingY;
-        
-        ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(startX + 30, cy); ctx.lineTo(cx - 30, l5Y); ctx.stroke();
-        
-        renderStaticTank(ctx, l5Class, cx, l5Y);
-        
-        let level15 = UPGRADE_PATHS[15][l5Class];
-        level15.forEach((l15Class, j) => {
-          let l15Y = l5Y + (j - 0.5) * (spacingY * 0.7);
-          
-          ctx.beginPath(); ctx.moveTo(cx + 30, l5Y); ctx.lineTo(cx + spacingX - 30, l15Y); ctx.stroke();
-          
-          renderStaticTank(ctx, l15Class, cx + spacingX, l15Y);
+      // Perfect Bracket Math Formula
+      paths5.forEach((c5, i5) => {
+        let y5 = cy + (i5 - 1.5) * 168; 
+        ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(cx - sX*1.5 + 30, ySquire); ctx.lineTo(cx - sX*0.5 - 30, y5); ctx.stroke();
+        renderStaticTank(ctx, c5, cx - sX*0.5, y5);
+
+        let paths15 = UPGRADE_PATHS[15][c5];
+        paths15.forEach((c15, i15) => {
+          let y15 = y5 + (i15 - 0.5) * 84;
+          ctx.beginPath(); ctx.moveTo(cx - sX*0.5 + 30, y5); ctx.lineTo(cx + sX*0.5 - 30, y15); ctx.stroke();
+          renderStaticTank(ctx, c15, cx + sX*0.5, y15);
+
+          let paths30 = UPGRADE_PATHS[30][c15];
+          paths30.forEach((c30, i30) => {
+            let y30 = y15 + (i30 - 0.5) * 42;
+            ctx.beginPath(); ctx.moveTo(cx + sX*0.5 + 30, y15); ctx.lineTo(cx + sX*1.5 - 30, y30); ctx.stroke();
+            renderStaticTank(ctx, c30, cx + sX*1.5, y30);
+          });
         });
       });
     }
@@ -372,26 +395,21 @@
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       let myP = gameState.players[myPlayerId];
-      if (!myP) return;
-      let mySize = CLASSES[myP.className].size;
+      if (!myP) return; let mySize = CLASSES[myP.className].size;
 
-      ctx.save();
-      ctx.translate(-(myP.x - canvas.width/2 + mySize/2), -(myP.y - canvas.height/2 + mySize/2));
+      ctx.save(); ctx.translate(-(myP.x - canvas.width/2 + mySize/2), -(myP.y - canvas.height/2 + mySize/2));
 
-      ctx.strokeStyle = "#444"; ctx.lineWidth = 1;
+      ctx.strokeStyle = "#333"; ctx.lineWidth = 1;
       for(let i=0; i<WORLD_SIZE; i+=100){ ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,WORLD_SIZE); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(WORLD_SIZE,i); ctx.stroke(); }
-      ctx.strokeStyle = "#fff"; ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+      ctx.strokeStyle = "#555"; ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
       gameState.orbs.forEach(o => { ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.arc(o.x, o.y, o.size, 0, Math.PI*2); ctx.fill(); });
-
       gameState.traps.forEach(t => { ctx.fillStyle = "#ff5555"; ctx.fillRect(t.x, t.y, 30, 30); ctx.fillStyle = "#222"; ctx.fillRect(t.x+6, t.y+6, 18, 18); });
-
       gameState.bullets.forEach(b => { ctx.fillStyle = "#fff"; ctx.fillRect(b.x, b.y, 10, 10); });
 
       Object.values(gameState.players).forEach(p => {
         let stats = CLASSES[p.className]; let size = stats.size;
-        let isSwinging = p.swingTimer > 5;
-        let hitboxes = getWeaponRect(p, isSwinging);
+        let isSwinging = p.swingTimer > 5; let hitboxes = getWeaponRect(p, isSwinging);
         ctx.fillStyle = isSwinging ? "#ffffff" : "#999999"; 
         hitboxes.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
 
@@ -405,7 +423,6 @@
       ctx.restore();
       
       if (showTree) drawClassTree();
-      
       if (isHost) updateHUD(); 
     }
 
