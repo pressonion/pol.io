@@ -20,11 +20,8 @@
     #level-txt { font-weight: bold; font-size: 18px; margin: 0; }
 
     #upgrade-menu { pointer-events: auto; position: absolute; top: 20%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 20px; border-radius: 10px; border: 2px solid #fff; display: none; text-align: center; }
-    .upg-btn { display: block; width: 200px; margin: 10px auto; padding: 10px; font-size: 16px; font-weight: bold; border: none; border-radius: 5px; }
-    #btn-guardian { background: #00aa00; color: white; }
-    #btn-duelist { background: #00ffff; color: black; }
-    #btn-berserker { background: #ff0000; color: white; }
-    #btn-warden { background: #ffff00; color: black; }
+    .upg-btn { display: block; width: 250px; margin: 10px auto; padding: 10px; font-size: 16px; font-weight: bold; border: none; border-radius: 5px; color: white; text-shadow: 1px 1px 2px black; cursor: pointer;}
+    .upg-btn:hover { filter: brightness(1.2); }
   </style>
 </head>
 <body>
@@ -42,12 +39,9 @@
     </div>
 
     <div id="upgrade-menu">
-      <h2>Level 5 Reached!</h2>
+      <h2 id="upg-title">Upgrade Available!</h2>
       <p>Choose your path:</p>
-      <button class="upg-btn" id="btn-guardian">The Guardian (Defense)</button>
-      <button class="upg-btn" id="btn-duelist">The Duelist (Speed)</button>
-      <button class="upg-btn" id="btn-berserker">The Berserker (Power)</button>
-      <button class="upg-btn" id="btn-warden">The Warden (Traps)</button>
+      <div id="upgrade-buttons"></div>
     </div>
 
     <div id="hud">
@@ -62,29 +56,50 @@
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    
-    // Fit canvas to screen
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
 
-    // Game Constants
     const WORLD_SIZE = 2000;
-    const P_SIZE = 30;
-    const COLORS = ["#3366ff", "#ff0055", "#ffaa00", "#aa00ff"]; 
-
-    // Class Stats Definitions
+    
+    // Massive Class Tree Definition!
+    // w = weapon width, l = weapon length
     const CLASSES = {
-      "Squire": { speed: 5, dash: 15, swingTicks: 15, cooldown: 60, color: "#fff" },
-      "Guardian": { speed: 3.5, dash: 10, swingTicks: 20, cooldown: 60, color: "#00ff00" },
-      "Duelist": { speed: 7, dash: 20, swingTicks: 10, cooldown: 40, color: "#00ffff" },
-      "Berserker": { speed: 3.5, dash: 12, swingTicks: 25, cooldown: 80, color: "#ff0000" },
-      "Warden": { speed: 5, dash: 15, swingTicks: 15, cooldown: 60, color: "#ffff00" }
+      // BASE
+      "Squire":     { color: "#3366ff", size: 30, speed: 5,   dash: 15, swingTicks: 15, cooldown: 60, w: 10, l: 30 },
+      
+      // LEVEL 5
+      "Guardian":   { color: "#00cc00", size: 30, speed: 3.5, dash: 10, swingTicks: 20, cooldown: 60, w: 45, l: 12 }, 
+      "Duelist":    { color: "#00ffff", size: 30, speed: 7,   dash: 20, swingTicks: 10, cooldown: 40, w: 8,  l: 55 },
+      "Berserker":  { color: "#ff0000", size: 30, speed: 3.5, dash: 12, swingTicks: 25, cooldown: 80, w: 25, l: 45 },
+      "Warden":     { color: "#ffff00", size: 30, speed: 5,   dash: 15, swingTicks: 15, cooldown: 60, w: 10, l: 30, trapRate: 600 }, 
+      
+      // LEVEL 15
+      "Juggernaut": { color: "#005500", size: 40, speed: 2.5, dash: 8,  swingTicks: 25, cooldown: 60, w: 60, l: 18 },
+      "Reflector":  { color: "#88ff88", size: 30, speed: 4,   dash: 10, swingTicks: 15, cooldown: 60, w: 40, l: 10 },
+      
+      "Hurricane":  { color: "#99ccff", size: 30, speed: 8,   dash: 22, swingTicks: 20, cooldown: 30, w: 8,  l: 45, spins: true },
+      "Spearman":   { color: "#008888", size: 30, speed: 6,   dash: 18, swingTicks: 15, cooldown: 50, w: 6,  l: 85 },
+      
+      "Executioner":{ color: "#880000", size: 30, speed: 3,   dash: 10, swingTicks: 30, cooldown: 90, w: 50, l: 40 }, 
+      "Flailer":    { color: "#ff8800", size: 30, speed: 4,   dash: 12, swingTicks: 20, cooldown: 70, w: 20, l: 65 }, 
+      
+      "Minefield":  { color: "#ffcc00", size: 30, speed: 5,   dash: 15, swingTicks: 15, cooldown: 60, w: 10, l: 30, trapRate: 200 },
+      "Gunblade":   { color: "#aa00ff", size: 30, speed: 5,   dash: 15, swingTicks: 20, cooldown: 60, w: 10, l: 20, shoots: true } 
+    };
+
+    const UPGRADE_PATHS = {
+      5: { "Squire": ["Guardian", "Duelist", "Berserker", "Warden"] },
+      15: {
+        "Guardian": ["Juggernaut", "Reflector"],
+        "Duelist": ["Hurricane", "Spearman"],
+        "Berserker": ["Executioner", "Flailer"],
+        "Warden": ["Minefield", "Gunblade"]
+      }
     };
 
     let peer = new Peer(Math.random().toString(36).substring(2, 7).toUpperCase(), { config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }] } });
     let isHost = false, hostConn = null, clientConns = [], myPlayerId = 0; 
-    let gameState = { players: {}, particles: [], orbs: [], traps: [] };
+    let gameState = { players: {}, particles: [], orbs: [], traps: [], bullets: [] };
     let lastNetTime = 0, lastClientTime = 0; 
     const keys = {}; let isAttacking = false, mouseX = 0, mouseY = 0;
 
@@ -101,44 +116,60 @@
       return dy > 0 ? "down" : "up";
     }
 
-    // --- UI LOGIC ---
+    // --- UI & UPGRADE LOGIC ---
     function updateHUD() {
       let p = gameState.players[myPlayerId];
       if (!p) return;
       document.getElementById("hud").style.display = "block";
       document.getElementById("level-txt").innerText = `Level ${p.level} - ${p.className}`;
       
-      let nextLevelXP = getXPForLevel(p.level + 1);
-      let currentLevelXP = getXPForLevel(p.level);
-      let progress = ((p.xp - currentLevelXP) / (nextLevelXP - currentLevelXP)) * 100;
+      let nextXP = p.level * 1; 
+      let prevXP = (p.level - 1) * 1;
+      let progress = ((p.xp - prevXP) / (nextXP - prevXP)) * 100;
       document.getElementById("xp-bar-fill").style.width = Math.min(100, Math.max(0, progress)) + "%";
 
-      // Show upgrade menu if eligible
+      // Check dynamic upgrades
+      let menu = document.getElementById("upgrade-menu");
+      let btns = document.getElementById("upgrade-buttons");
+      let options = [];
+
       if (p.level >= 5 && p.className === "Squire") {
-        document.getElementById("upgrade-menu").style.display = "block";
+        options = UPGRADE_PATHS[5]["Squire"];
+        document.getElementById("upg-title").innerText = "Level 5 - Choose your Class!";
+      } else if (p.level >= 15 && UPGRADE_PATHS[15][p.className]) {
+        options = UPGRADE_PATHS[15][p.className];
+        document.getElementById("upg-title").innerText = "Level 15 - Choose your Evolution!";
+      }
+
+      if (options.length > 0) {
+        if (menu.style.display !== "block") {
+          btns.innerHTML = "";
+          options.forEach(opt => {
+            let b = document.createElement("button");
+            b.className = "upg-btn";
+            b.innerText = opt;
+            b.style.background = CLASSES[opt].color;
+            b.onclick = () => selectUpgrade(opt);
+            btns.appendChild(b);
+          });
+          menu.style.display = "block";
+        }
       } else {
-        document.getElementById("upgrade-menu").style.display = "none";
+        menu.style.display = "none";
       }
     }
-
-    function getXPForLevel(lvl) { return (lvl - 1) * 1; } // 1 kill = 1 level for now
 
     function selectUpgrade(newClass) {
       document.getElementById("upgrade-menu").style.display = "none";
       if (isHost) { gameState.players[myPlayerId].className = newClass; } 
       else { hostConn.send({ type: "upgrade", newClass: newClass }); }
     }
-    document.getElementById("btn-guardian").onclick = () => selectUpgrade("Guardian");
-    document.getElementById("btn-duelist").onclick = () => selectUpgrade("Duelist");
-    document.getElementById("btn-berserker").onclick = () => selectUpgrade("Berserker");
-    document.getElementById("btn-warden").onclick = () => selectUpgrade("Warden");
 
     // --- NETWORKING ---
     document.getElementById("host-btn").onclick = () => {
       isHost = true; document.getElementById("menu").style.display = "none";
       document.getElementById("status").innerText = "HOST CODE: " + peer.id;
       addPlayer(0); myPlayerId = 0;
-
       peer.on("connection", (conn) => {
         if (clientConns.length >= 3) return conn.close();
         let newId = clientConns.length + 1; clientConns.push(conn);
@@ -172,48 +203,53 @@
 
     function addPlayer(id) {
       gameState.players[id] = {
-        x: Math.random() * (WORLD_SIZE-100)+50, y: Math.random() * (WORLD_SIZE-100)+50,
-        color: COLORS[id], hp: 100, score: 0, level: 1, xp: 0, className: "Squire",
+        x: Math.random()*(WORLD_SIZE-100)+50, y: Math.random()*(WORLD_SIZE-100)+50,
+        hp: 100, score: 0, level: 1, xp: 0, className: "Squire", trapTimer: 600,
         dir: "right", mouseDir: "right", swingTimer: 0, dashTimer: 0, dashCooldown: 0, keys: {}, wantsAttack: false
       };
     }
 
     // --- HOST GAME LOGIC ---
-    function getWeapons(p) {
-      // Returns an array of hitboxes depending on class
-      let len = 40, w = 10, off = P_SIZE/2 - 5;
+    function getWeaponRect(p, isAttackingVisual = false) {
+      let stats = CLASSES[p.className];
+      let w = stats.w; let l = stats.l; let s = stats.size;
       
-      if (p.className === "Berserker") { len = 50; w = 30; off = 0; }
-      if (p.className === "Guardian") { len = 15; w = 40; off = -5; } // Shield shape
+      // If thrusting, weapon moves forward 15 pixels
+      let offset = isAttackingVisual ? 15 : 0;
+      
+      // Center alignments
+      let alignX = p.x + (s/2) - (w/2);
+      let alignY = p.y + (s/2) - (w/2);
 
       let boxes = [];
-      if (p.className === "Duelist") { // Two fast daggers
-        let sep = 10;
-        if (p.dir === "up") { boxes.push({x:p.x+off-sep, y:p.y-len, w:10, h:len}); boxes.push({x:p.x+off+sep, y:p.y-len, w:10, h:len}); }
-        if (p.dir === "down") { boxes.push({x:p.x+off-sep, y:p.y+P_SIZE, w:10, h:len}); boxes.push({x:p.x+off+sep, y:p.y+P_SIZE, w:10, h:len}); }
-        if (p.dir === "left") { boxes.push({x:p.x-len, y:p.y+off-sep, w:len, h:10}); boxes.push({x:p.x-len, y:p.y+off+sep, w:len, h:10}); }
-        if (p.dir === "right") { boxes.push({x:p.x+P_SIZE, y:p.y+off-sep, w:len, h:10}); boxes.push({x:p.x+P_SIZE, y:p.y+off+sep, w:len, h:10}); }
-      } else { // Single weapon
-        if (p.dir === "up") boxes.push({ x: p.x+off, y: p.y-len, w: w, h: len });
-        if (p.dir === "down") boxes.push({ x: p.x+off, y: p.y+P_SIZE, w: w, h: len });
-        if (p.dir === "left") boxes.push({ x: p.x-len, y: p.y+off, w: len, h: w });
-        if (p.dir === "right") boxes.push({ x: p.x+P_SIZE, y: p.y+off, w: len, h: w });
+      
+      // Hurricane spins (draws 4 boxes when attacking)
+      if (stats.spins && isAttackingVisual) {
+        boxes.push({ x: alignX, y: p.y - l - offset, w: w, h: l }); // Up
+        boxes.push({ x: alignX, y: p.y + s + offset, w: w, h: l }); // Down
+        boxes.push({ x: p.x - l - offset, y: alignY, w: l, h: w }); // Left
+        boxes.push({ x: p.x + s + offset, y: alignY, w: l, h: w }); // Right
+        return boxes;
       }
+
+      // Normal single directional weapon
+      let dir = isAttackingVisual ? p.dir : p.mouseDir; // Aim with mouse naturally
+      
+      if (dir === "up") boxes.push({ x: alignX, y: p.y - l - offset, w: w, h: l });
+      if (dir === "down") boxes.push({ x: alignX, y: p.y + s + offset, w: w, h: l });
+      if (dir === "left") boxes.push({ x: p.x - l - offset, y: alignY, w: l, h: w });
+      if (dir === "right") boxes.push({ x: p.x + s + offset, y: alignY, w: l, h: w });
+      
       return boxes;
     }
 
     function checkHit(rectA, rectB) {
-      return rectA.x < rectB.x + rectB.w && rectA.x + rectA.w > rectB.x &&
-             rectA.y < rectB.y + rectB.h && rectA.y + rectA.h > rectB.y;
+      return rectA.x < rectB.x + rectB.w && rectA.x + rectA.w > rectB.x && rectA.y < rectB.y + rectB.h && rectA.y + rectA.h > rectB.y;
     }
 
     function addXP(p, amount) {
       p.xp += amount;
-      while (p.xp >= getXPForLevel(p.level + 1)) {
-        p.level++;
-        // Heal on level up
-        p.hp = 100;
-      }
+      while (p.xp >= p.level * 1) { p.level++; p.hp = 100; }
     }
 
     function updatePhysics() {
@@ -222,9 +258,27 @@
         gameState.players[0].keys = keys; gameState.players[0].wantsAttack = isAttacking; gameState.players[0].mouseDir = getMouseDir();
       }
 
-      // Spawn XP Orbs
       if (Math.random() < 0.05 && gameState.orbs.length < 100) {
         gameState.orbs.push({ x: Math.random()*(WORLD_SIZE-40)+20, y: Math.random()*(WORLD_SIZE-40)+20, size: 10 });
+      }
+      
+      // Update Bullets
+      for (let i = gameState.bullets.length - 1; i >= 0; i--) {
+        let b = gameState.bullets[i];
+        b.x += b.vx; b.y += b.vy; b.life--;
+        if (b.life <= 0) { gameState.bullets.splice(i, 1); continue; }
+        
+        let bRect = {x: b.x, y: b.y, w: 10, h: 10};
+        Object.keys(gameState.players).forEach(tId => {
+          if (b.owner !== tId) {
+            let t = gameState.players[tId]; let tSize = CLASSES[t.className].size;
+            if (checkHit(bRect, {x: t.x, y: t.y, w: tSize, h: tSize})) {
+              t.hp -= 15;
+              if (t.hp <= 0) { gameState.players[b.owner].score++; addXP(gameState.players[b.owner], 1.0); t.hp = 100; t.x = Math.random()*(WORLD_SIZE-100)+50; t.y = Math.random()*(WORLD_SIZE-100)+50; }
+              b.life = 0; // Destroy bullet
+            }
+          }
+        });
       }
       
       // Update Traps
@@ -237,16 +291,23 @@
       pIds.forEach(id => {
         let p = gameState.players[id];
         let stats = CLASSES[p.className];
+        let size = stats.size;
         
+        // Trap dropping logic (Every 10 seconds / 600 ticks)
+        if (stats.trapRate) {
+          p.trapTimer--;
+          if (p.trapTimer <= 0) {
+            gameState.traps.push({ x: p.x + size/2 - 15, y: p.y + size/2 - 15, owner: id, life: 600 });
+            p.trapTimer = stats.trapRate;
+          }
+        }
+
         if (p.dashCooldown > 0) p.dashCooldown--;
         if (p.swingTimer > 0) p.swingTimer--;
 
         let spd = stats.speed;
         if (p.keys["Space"] && p.dashCooldown === 0) {
           p.dashTimer = 10; p.dashCooldown = stats.cooldown; 
-          if (p.className === "Warden") {
-            gameState.traps.push({ x: p.x, y: p.y, owner: id, life: 300 });
-          }
         }
         if (p.dashTimer > 0) { spd = stats.dash; p.dashTimer--; }
 
@@ -254,34 +315,40 @@
         if (p.keys["KeyS"] || p.keys["ArrowDown"]) p.y += spd; 
         if (p.keys["KeyA"] || p.keys["ArrowLeft"]) p.x -= spd; 
         if (p.keys["KeyD"] || p.keys["ArrowRight"]) p.x += spd; 
-        p.x = Math.max(0, Math.min(WORLD_SIZE-P_SIZE, p.x)); p.y = Math.max(0, Math.min(WORLD_SIZE-P_SIZE, p.y));
+        p.x = Math.max(0, Math.min(WORLD_SIZE-size, p.x)); p.y = Math.max(0, Math.min(WORLD_SIZE-size, p.y));
 
-        // Trap collisions
         gameState.traps.forEach(trap => {
-          if (trap.owner !== id && checkHit(p, {x: trap.x, y: trap.y, w: P_SIZE, h: P_SIZE})) {
-            p.hp -= 1; // Traps tick damage fast
+          if (trap.owner !== id && checkHit({x: p.x, y: p.y, w: size, h: size}, {x: trap.x, y: trap.y, w: 30, h: 30})) {
+            p.hp -= 1.5; // Damage over time while standing on trap
+            if (p.hp <= 0) {
+               p.hp = 100; p.x = Math.random()*(WORLD_SIZE-100)+50; p.y = Math.random()*(WORLD_SIZE-100)+50;
+               if (gameState.players[trap.owner]) { gameState.players[trap.owner].score++; addXP(gameState.players[trap.owner], 1.0); }
+            }
           }
         });
 
         if (p.wantsAttack && p.swingTimer === 0 && p.dashTimer <= 0) {
           p.dir = p.mouseDir; p.swingTimer = stats.swingTicks; 
-          let hitboxes = getWeapons(p);
+          
+          if (stats.shoots) {
+            let bvx = 0, bvy = 0;
+            if (p.dir === "up") bvy = -12; if (p.dir === "down") bvy = 12;
+            if (p.dir === "left") bvx = -12; if (p.dir === "right") bvx = 12;
+            gameState.bullets.push({ x: p.x + size/2 - 5, y: p.y + size/2 - 5, vx: bvx, vy: bvy, life: 100, owner: id });
+          }
 
-          // Hit Orbs
+          let hitboxes = getWeaponRect(p, true);
           hitboxes.forEach(box => {
             for (let i = gameState.orbs.length - 1; i >= 0; i--) {
               let o = gameState.orbs[i];
               if (checkHit(box, {x: o.x-o.size, y: o.y-o.size, w: o.size*2, h: o.size*2})) {
-                addXP(p, 0.5);
-                gameState.orbs.splice(i, 1);
+                addXP(p, 0.5); gameState.orbs.splice(i, 1);
               }
             }
-            
-            // Hit Players
             pIds.forEach(tId => {
               if (id !== tId) {
-                let t = gameState.players[tId];
-                if (checkHit(box, {x: t.x, y: t.y, w: P_SIZE, h: P_SIZE})) {
+                let t = gameState.players[tId]; let tSize = CLASSES[t.className].size;
+                if (checkHit(box, {x: t.x, y: t.y, w: tSize, h: tSize})) {
                   t.hp -= 25;
                   if (t.hp <= 0) {
                     p.score++; addXP(p, 1.0);
@@ -301,9 +368,7 @@
       }
       
       let txt = "";
-      Object.keys(gameState.players).forEach(i => {
-        txt += `<span style="color:${COLORS[i]}">Player ${parseInt(i)+1}: Lvl ${gameState.players[i].level}</span> | `;
-      });
+      Object.keys(gameState.players).forEach(i => { txt += `<span style="color:${CLASSES[gameState.players[i].className].color}">Player ${parseInt(i)+1}: Lvl ${gameState.players[i].level}</span> | `; });
       document.getElementById("scores").innerHTML = txt.slice(0, -2);
     }
 
@@ -312,54 +377,51 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       let myP = gameState.players[myPlayerId];
       if (!myP) return;
+      let mySize = CLASSES[myP.className].size;
 
       ctx.save();
-      ctx.translate(-(myP.x - canvas.width/2 + P_SIZE/2), -(myP.y - canvas.height/2 + P_SIZE/2));
+      ctx.translate(-(myP.x - canvas.width/2 + mySize/2), -(myP.y - canvas.height/2 + mySize/2));
 
       // Grid
       ctx.strokeStyle = "#444"; ctx.lineWidth = 1;
-      for(let i=0; i<WORLD_SIZE; i+=100){
-        ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,WORLD_SIZE); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(WORLD_SIZE,i); ctx.stroke();
-      }
+      for(let i=0; i<WORLD_SIZE; i+=100){ ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,WORLD_SIZE); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(WORLD_SIZE,i); ctx.stroke(); }
       ctx.strokeStyle = "#fff"; ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
       // Orbs
-      gameState.orbs.forEach(o => {
-        ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.arc(o.x, o.y, o.size, 0, Math.PI*2); ctx.fill();
+      gameState.orbs.forEach(o => { ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.arc(o.x, o.y, o.size, 0, Math.PI*2); ctx.fill(); });
+
+      // Traps
+      gameState.traps.forEach(t => {
+        ctx.fillStyle = "#ff5555"; ctx.fillRect(t.x, t.y, 30, 30);
+        ctx.fillStyle = "#222"; ctx.fillRect(t.x+6, t.y+6, 18, 18);
       });
 
-      // Traps (Warden)
-      gameState.traps.forEach(t => {
-        ctx.fillStyle = "#8b4513"; // Brown box
-        ctx.fillRect(t.x, t.y, P_SIZE, P_SIZE);
-        ctx.fillStyle = "black";
-        ctx.fillRect(t.x+5, t.y+5, P_SIZE-10, P_SIZE-10); // Inner hole
-      });
+      // Bullets
+      gameState.bullets.forEach(b => { ctx.fillStyle = "#fff"; ctx.fillRect(b.x, b.y, 10, 10); });
 
       // Players
       Object.values(gameState.players).forEach(p => {
-        ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, P_SIZE, P_SIZE);
+        let stats = CLASSES[p.className];
+        let size = stats.size;
         
-        // Inner class indicator color
-        ctx.fillStyle = CLASSES[p.className].color;
-        ctx.fillRect(p.x+10, p.y+10, 10, 10);
+        // Draw Permanent Weapon (Aims at mouse, flashes white if swinging)
+        let isSwinging = p.swingTimer > 5;
+        let hitboxes = getWeaponRect(p, isSwinging);
+        ctx.fillStyle = isSwinging ? "#ffffff" : "#999999"; 
+        hitboxes.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
 
-        // Health & Dash bars
-        ctx.fillStyle = "#f00"; ctx.fillRect(p.x, p.y-12, P_SIZE, 5);
-        ctx.fillStyle = "#0f0"; ctx.fillRect(p.x, p.y-12, P_SIZE*(p.hp/100), 5);
-        let maxCool = CLASSES[p.className].cooldown;
-        ctx.fillStyle = "#0ff"; ctx.fillRect(p.x, p.y+P_SIZE+4, P_SIZE*(1-(p.dashCooldown/maxCool)), 3);
+        // Draw Player Body
+        ctx.fillStyle = stats.color; 
+        ctx.fillRect(p.x, p.y, size, size);
+        ctx.strokeStyle = "#000"; ctx.lineWidth = 3; ctx.strokeRect(p.x, p.y, size, size);
 
-        // Weapons
-        if (p.swingTimer > 5) {
-          ctx.fillStyle = CLASSES[p.className].color;
-          let hitboxes = getWeapons(p);
-          hitboxes.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
-        }
+        // UI Bars
+        ctx.fillStyle = "#f00"; ctx.fillRect(p.x, p.y-12, size, 5);
+        ctx.fillStyle = "#0f0"; ctx.fillRect(p.x, p.y-12, size*(p.hp/100), 5);
+        ctx.fillStyle = "#0ff"; ctx.fillRect(p.x, p.y+size+4, size*(1-(p.dashCooldown/stats.cooldown)), 3);
       });
       ctx.restore();
-      if (isHost) updateHUD(); // Host manual HUD update
+      if (isHost) updateHUD(); 
     }
 
     function loop() {
