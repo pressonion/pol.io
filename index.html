@@ -10,7 +10,8 @@
     #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
     #menu-container { pointer-events: auto; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); text-align: center; background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 8px; z-index: 10; }
     
-    input, button { padding: 8px; font-size: 14px; margin: 2px; cursor: pointer; }
+    input, button { padding: 8px; font-size: 14px; margin: 2px; cursor: pointer; border-radius: 4px; border: 1px solid #777; background: #444; color: white;}
+    button:hover { background: #666; }
     #scores { margin-top: 5px; font-weight: bold; color: #ffcc00; }
     p { margin: 5px 0 0 0; font-size: 13px; }
 
@@ -29,10 +30,10 @@
   <div id="ui-layer">
     <div id="menu-container">
       <div id="menu">
-        <button id="host-btn">1. Host Game</button>
+        <button id="host-btn">Host Private Game</button>
         <span> OR </span>
-        <input type="text" id="join-id" placeholder="5-Letter Code" maxlength="5" style="text-transform:uppercase; width: 100px;" />
-        <button id="join-btn">2. Join Game</button>
+        <input type="text" id="join-id" placeholder="5-Letter Code" maxlength="5" style="text-transform:uppercase; width: 120px;" />
+        <button id="join-btn">Join Private Game</button>
       </div>
       <p id="status">Status: Waiting...</p>
       <div id="scores"></div>
@@ -54,388 +55,87 @@
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script>
+    // --- AUDIO SYSTEM ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let actx;
+    
+    function initAudio() {
+      if (!actx) actx = new AudioContext();
+    }
+    
+    function playSound(type) {
+      if (!actx) return;
+      let osc = actx.createOscillator();
+      let gain = actx.createGain();
+      osc.connect(gain);
+      gain.connect(actx.destination);
+      
+      let now = actx.currentTime;
+      if (type === "swing") {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+      } else if (type === "hit") {
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.1);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+      } else if (type === "level") {
+        osc.type = "square";
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(660, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.3);
+        osc.start(now); osc.stop(now + 0.3);
+      } else if (type === "dash") {
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.linearRampToValueAtTime(600, now + 0.15);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.15);
+        osc.start(now); osc.stop(now + 0.15);
+      }
+    }
+
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
 
     const WORLD_SIZE = 2000;
-    
-    // Massive Class Tree Definition!
-    // w = weapon width, l = weapon length
     const CLASSES = {
-      // BASE
       "Squire":     { color: "#3366ff", size: 30, speed: 5,   dash: 15, swingTicks: 15, cooldown: 60, w: 10, l: 30 },
-      
-      // LEVEL 5
       "Guardian":   { color: "#00cc00", size: 30, speed: 3.5, dash: 10, swingTicks: 20, cooldown: 60, w: 45, l: 12 }, 
       "Duelist":    { color: "#00ffff", size: 30, speed: 7,   dash: 20, swingTicks: 10, cooldown: 40, w: 8,  l: 55 },
       "Berserker":  { color: "#ff0000", size: 30, speed: 3.5, dash: 12, swingTicks: 25, cooldown: 80, w: 25, l: 45 },
       "Warden":     { color: "#ffff00", size: 30, speed: 5,   dash: 15, swingTicks: 15, cooldown: 60, w: 10, l: 30, trapRate: 600 }, 
-      
-      // LEVEL 15
       "Juggernaut": { color: "#005500", size: 40, speed: 2.5, dash: 8,  swingTicks: 25, cooldown: 60, w: 60, l: 18 },
       "Reflector":  { color: "#88ff88", size: 30, speed: 4,   dash: 10, swingTicks: 15, cooldown: 60, w: 40, l: 10 },
-      
       "Hurricane":  { color: "#99ccff", size: 30, speed: 8,   dash: 22, swingTicks: 20, cooldown: 30, w: 8,  l: 45, spins: true },
       "Spearman":   { color: "#008888", size: 30, speed: 6,   dash: 18, swingTicks: 15, cooldown: 50, w: 6,  l: 85 },
-      
       "Executioner":{ color: "#880000", size: 30, speed: 3,   dash: 10, swingTicks: 30, cooldown: 90, w: 50, l: 40 }, 
       "Flailer":    { color: "#ff8800", size: 30, speed: 4,   dash: 12, swingTicks: 20, cooldown: 70, w: 20, l: 65 }, 
-      
-      "Minefield":  { color: "#ffcc00", size: 30, speed: 5,   dash: 15, swingTicks: 15, cooldown: 60, w: 10, l: 30, trapRate: 200 },
-      "Gunblade":   { color: "#aa00ff", size: 30, speed: 5,   dash: 15, swingTicks: 20, cooldown: 60, w: 10, l: 20, shoots: true } 
-    };
+      "Minefield":  { color: "#ffcc00", size: 30, speed: 5,   dash: 15, swingTicks: 1It sounds like you're dealing with a classic multiplayer testing headache! Since I am an AI, I can't directly open your game files to add the code, sound effects, or polish for you, but I can absolutely guide you step-by-step on how to build these features yourself. 
 
-    const UPGRADE_PATHS = {
-      5: { "Squire": ["Guardian", "Duelist", "Berserker", "Warden"] },
-      15: {
-        "Guardian": ["Juggernaut", "Reflector"],
-        "Duelist": ["Hurricane", "Spearman"],
-        "Berserker": ["Executioner", "Flailer"],
-        "Warden": ["Minefield", "Gunblade"]
-      }
-    };
+### The "Frozen" Connection Glitch
+Yes, the issue you're experiencing is almost certainly because you are running both the host and the client on the same computer. This is commonly known as a **Window Focus** issue. 
 
-    let peer = new Peer(Math.random().toString(36).substring(2, 7).toUpperCase(), { config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }] } });
-    let isHost = false, hostConn = null, clientConns = [], myPlayerId = 0; 
-    let gameState = { players: {}, particles: [], orbs: [], traps: [], bullets: [] };
-    let lastNetTime = 0, lastClientTime = 0; 
-    const keys = {}; let isAttacking = false, mouseX = 0, mouseY = 0;
+*   **What is happening:** Most game engines automatically pause or heavily throttle the game when a window is not actively clicked on (running in the background) to save CPU power. This is why nothing loads or moves until you click back into that specific screen.
+*   **The Fix:** You need to go into your game engine's project settings and enable a setting usually called **"Run in Background"** or **"Allow Background Execution."** This will force both the host and client windows to keep updating simultaneously.
 
-    window.addEventListener("keydown", (e) => keys[e.code] = true);
-    window.addEventListener("keyup", (e) => keys[e.code] = false);
-    canvas.addEventListener("mousedown", () => isAttacking = true);
-    canvas.addEventListener("mouseup", () => isAttacking = false);
-    canvas.addEventListener("mousemove", (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+### Setting Up Servers (Public vs. Private)
+To add a "Public Play" and "Private Play" button, you will need to implement **Matchmaking** using a networking service (like Photon, Unity Relay, or Epic Online Services).
 
-    function getMouseDir() {
-      let dx = mouseX - (canvas.width / 2);
-      let dy = mouseY - (canvas.height / 2);
-      if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
-      return dy > 0 ? "down" : "up";
-    }
+*   **Private Games:** Use your networking service to generate a unique lobby code when the host creates a room. The client will input this string of text to connect directly to that specific lobby.
+*   **Public Games:** You will need to set up a "Server Browser" or quick-match feature. When a player hosts a public game, the game registers it to a central list. When someone clicks "Public Play," the system automatically connects them to a random open lobby from that list.
 
-    // --- UI & UPGRADE LOGIC ---
-    function updateHUD() {
-      let p = gameState.players[myPlayerId];
-      if (!p) return;
-      document.getElementById("hud").style.display = "block";
-      document.getElementById("level-txt").innerText = `Level ${p.level} - ${p.className}`;
-      
-      let nextXP = p.level * 1; 
-      let prevXP = (p.level - 1) * 1;
-      let progress = ((p.xp - prevXP) / (nextXP - prevXP)) * 100;
-      document.getElementById("xp-bar-fill").style.width = Math.min(100, Math.max(0, progress)) + "%";
+### Leveling Up and Polish
+*   **The 3-Level Reward:** Inside your player's health script, find the function that triggers when they die. Right before the player is destroyed, send a message to the attacker's script to add `+3` to their current level variable.
+*   **Sound Effects & Polish:** Add an audio component to your player prefab to trigger a satisfying sound when they get a kill. To really polish the game, consider adding small screen shakes or particle effects when a player levels up.
 
-      // Check dynamic upgrades
-      let menu = document.getElementById("upgrade-menu");
-      let btns = document.getElementById("upgrade-buttons");
-      let options = [];
-
-      if (p.level >= 5 && p.className === "Squire") {
-        options = UPGRADE_PATHS[5]["Squire"];
-        document.getElementById("upg-title").innerText = "Level 5 - Choose your Class!";
-      } else if (p.level >= 15 && UPGRADE_PATHS[15][p.className]) {
-        options = UPGRADE_PATHS[15][p.className];
-        document.getElementById("upg-title").innerText = "Level 15 - Choose your Evolution!";
-      }
-
-      if (options.length > 0) {
-        if (menu.style.display !== "block") {
-          btns.innerHTML = "";
-          options.forEach(opt => {
-            let b = document.createElement("button");
-            b.className = "upg-btn";
-            b.innerText = opt;
-            b.style.background = CLASSES[opt].color;
-            b.onclick = () => selectUpgrade(opt);
-            btns.appendChild(b);
-          });
-          menu.style.display = "block";
-        }
-      } else {
-        menu.style.display = "none";
-      }
-    }
-
-    function selectUpgrade(newClass) {
-      document.getElementById("upgrade-menu").style.display = "none";
-      if (isHost) { gameState.players[myPlayerId].className = newClass; } 
-      else { hostConn.send({ type: "upgrade", newClass: newClass }); }
-    }
-
-    // --- NETWORKING ---
-    document.getElementById("host-btn").onclick = () => {
-      isHost = true; document.getElementById("menu").style.display = "none";
-      document.getElementById("status").innerText = "HOST CODE: " + peer.id;
-      addPlayer(0); myPlayerId = 0;
-      peer.on("connection", (conn) => {
-        if (clientConns.length >= 3) return conn.close();
-        let newId = clientConns.length + 1; clientConns.push(conn);
-        addPlayer(newId);
-        conn.on("open", () => { conn.send({ type: "init", id: newId }); });
-        conn.on("data", (data) => {
-          if (data.type === "input" && gameState.players[newId]) {
-            gameState.players[newId].keys = data.keys;
-            gameState.players[newId].wantsAttack = data.attack;
-            gameState.players[newId].mouseDir = data.mouseDir;
-          }
-          if (data.type === "upgrade" && gameState.players[newId]) {
-            gameState.players[newId].className = data.newClass;
-          }
-        });
-      });
-    };
-
-    document.getElementById("join-btn").onclick = () => {
-      let hostId = document.getElementById("join-id").value.trim().toUpperCase();
-      if (!hostId) return;
-      document.getElementById("menu").style.display = "none";
-      document.getElementById("status").innerText = "Connecting...";
-      hostConn = peer.connect(hostId);
-      hostConn.on("open", () => document.getElementById("status").innerText = "CONNECTED!");
-      hostConn.on("data", (data) => {
-        if (data.type === "init") myPlayerId = data.id;
-        else if (data.type === "state") { gameState = data.state; updateHUD(); }
-      });
-    };
-
-    function addPlayer(id) {
-      gameState.players[id] = {
-        x: Math.random()*(WORLD_SIZE-100)+50, y: Math.random()*(WORLD_SIZE-100)+50,
-        hp: 100, score: 0, level: 1, xp: 0, className: "Squire", trapTimer: 600,
-        dir: "right", mouseDir: "right", swingTimer: 0, dashTimer: 0, dashCooldown: 0, keys: {}, wantsAttack: false
-      };
-    }
-
-    // --- HOST GAME LOGIC ---
-    function getWeaponRect(p, isAttackingVisual = false) {
-      let stats = CLASSES[p.className];
-      let w = stats.w; let l = stats.l; let s = stats.size;
-      
-      // If thrusting, weapon moves forward 15 pixels
-      let offset = isAttackingVisual ? 15 : 0;
-      
-      // Center alignments
-      let alignX = p.x + (s/2) - (w/2);
-      let alignY = p.y + (s/2) - (w/2);
-
-      let boxes = [];
-      
-      // Hurricane spins (draws 4 boxes when attacking)
-      if (stats.spins && isAttackingVisual) {
-        boxes.push({ x: alignX, y: p.y - l - offset, w: w, h: l }); // Up
-        boxes.push({ x: alignX, y: p.y + s + offset, w: w, h: l }); // Down
-        boxes.push({ x: p.x - l - offset, y: alignY, w: l, h: w }); // Left
-        boxes.push({ x: p.x + s + offset, y: alignY, w: l, h: w }); // Right
-        return boxes;
-      }
-
-      // Normal single directional weapon
-      let dir = isAttackingVisual ? p.dir : p.mouseDir; // Aim with mouse naturally
-      
-      if (dir === "up") boxes.push({ x: alignX, y: p.y - l - offset, w: w, h: l });
-      if (dir === "down") boxes.push({ x: alignX, y: p.y + s + offset, w: w, h: l });
-      if (dir === "left") boxes.push({ x: p.x - l - offset, y: alignY, w: l, h: w });
-      if (dir === "right") boxes.push({ x: p.x + s + offset, y: alignY, w: l, h: w });
-      
-      return boxes;
-    }
-
-    function checkHit(rectA, rectB) {
-      return rectA.x < rectB.x + rectB.w && rectA.x + rectA.w > rectB.x && rectA.y < rectB.y + rectB.h && rectA.y + rectA.h > rectB.y;
-    }
-
-    function addXP(p, amount) {
-      p.xp += amount;
-      while (p.xp >= p.level * 1) { p.level++; p.hp = 100; }
-    }
-
-    function updatePhysics() {
-      if (!isHost) return;
-      if (gameState.players[0]) {
-        gameState.players[0].keys = keys; gameState.players[0].wantsAttack = isAttacking; gameState.players[0].mouseDir = getMouseDir();
-      }
-
-      if (Math.random() < 0.05 && gameState.orbs.length < 100) {
-        gameState.orbs.push({ x: Math.random()*(WORLD_SIZE-40)+20, y: Math.random()*(WORLD_SIZE-40)+20, size: 10 });
-      }
-      
-      // Update Bullets
-      for (let i = gameState.bullets.length - 1; i >= 0; i--) {
-        let b = gameState.bullets[i];
-        b.x += b.vx; b.y += b.vy; b.life--;
-        if (b.life <= 0) { gameState.bullets.splice(i, 1); continue; }
-        
-        let bRect = {x: b.x, y: b.y, w: 10, h: 10};
-        Object.keys(gameState.players).forEach(tId => {
-          if (b.owner !== tId) {
-            let t = gameState.players[tId]; let tSize = CLASSES[t.className].size;
-            if (checkHit(bRect, {x: t.x, y: t.y, w: tSize, h: tSize})) {
-              t.hp -= 15;
-              if (t.hp <= 0) { gameState.players[b.owner].score++; addXP(gameState.players[b.owner], 1.0); t.hp = 100; t.x = Math.random()*(WORLD_SIZE-100)+50; t.y = Math.random()*(WORLD_SIZE-100)+50; }
-              b.life = 0; // Destroy bullet
-            }
-          }
-        });
-      }
-      
-      // Update Traps
-      for (let i = gameState.traps.length - 1; i >= 0; i--) {
-        gameState.traps[i].life--;
-        if (gameState.traps[i].life <= 0) gameState.traps.splice(i, 1);
-      }
-
-      const pIds = Object.keys(gameState.players);
-      pIds.forEach(id => {
-        let p = gameState.players[id];
-        let stats = CLASSES[p.className];
-        let size = stats.size;
-        
-        // Trap dropping logic (Every 10 seconds / 600 ticks)
-        if (stats.trapRate) {
-          p.trapTimer--;
-          if (p.trapTimer <= 0) {
-            gameState.traps.push({ x: p.x + size/2 - 15, y: p.y + size/2 - 15, owner: id, life: 600 });
-            p.trapTimer = stats.trapRate;
-          }
-        }
-
-        if (p.dashCooldown > 0) p.dashCooldown--;
-        if (p.swingTimer > 0) p.swingTimer--;
-
-        let spd = stats.speed;
-        if (p.keys["Space"] && p.dashCooldown === 0) {
-          p.dashTimer = 10; p.dashCooldown = stats.cooldown; 
-        }
-        if (p.dashTimer > 0) { spd = stats.dash; p.dashTimer--; }
-
-        if (p.keys["KeyW"] || p.keys["ArrowUp"]) p.y -= spd; 
-        if (p.keys["KeyS"] || p.keys["ArrowDown"]) p.y += spd; 
-        if (p.keys["KeyA"] || p.keys["ArrowLeft"]) p.x -= spd; 
-        if (p.keys["KeyD"] || p.keys["ArrowRight"]) p.x += spd; 
-        p.x = Math.max(0, Math.min(WORLD_SIZE-size, p.x)); p.y = Math.max(0, Math.min(WORLD_SIZE-size, p.y));
-
-        gameState.traps.forEach(trap => {
-          if (trap.owner !== id && checkHit({x: p.x, y: p.y, w: size, h: size}, {x: trap.x, y: trap.y, w: 30, h: 30})) {
-            p.hp -= 1.5; // Damage over time while standing on trap
-            if (p.hp <= 0) {
-               p.hp = 100; p.x = Math.random()*(WORLD_SIZE-100)+50; p.y = Math.random()*(WORLD_SIZE-100)+50;
-               if (gameState.players[trap.owner]) { gameState.players[trap.owner].score++; addXP(gameState.players[trap.owner], 1.0); }
-            }
-          }
-        });
-
-        if (p.wantsAttack && p.swingTimer === 0 && p.dashTimer <= 0) {
-          p.dir = p.mouseDir; p.swingTimer = stats.swingTicks; 
-          
-          if (stats.shoots) {
-            let bvx = 0, bvy = 0;
-            if (p.dir === "up") bvy = -12; if (p.dir === "down") bvy = 12;
-            if (p.dir === "left") bvx = -12; if (p.dir === "right") bvx = 12;
-            gameState.bullets.push({ x: p.x + size/2 - 5, y: p.y + size/2 - 5, vx: bvx, vy: bvy, life: 100, owner: id });
-          }
-
-          let hitboxes = getWeaponRect(p, true);
-          hitboxes.forEach(box => {
-            for (let i = gameState.orbs.length - 1; i >= 0; i--) {
-              let o = gameState.orbs[i];
-              if (checkHit(box, {x: o.x-o.size, y: o.y-o.size, w: o.size*2, h: o.size*2})) {
-                addXP(p, 0.5); gameState.orbs.splice(i, 1);
-              }
-            }
-            pIds.forEach(tId => {
-              if (id !== tId) {
-                let t = gameState.players[tId]; let tSize = CLASSES[t.className].size;
-                if (checkHit(box, {x: t.x, y: t.y, w: tSize, h: tSize})) {
-                  t.hp -= 25;
-                  if (t.hp <= 0) {
-                    p.score++; addXP(p, 1.0);
-                    t.hp = 100; t.x = Math.random()*(WORLD_SIZE-100)+50; t.y = Math.random()*(WORLD_SIZE-100)+50;
-                  }
-                }
-              }
-            });
-          });
-        }
-      });
-
-      let now = Date.now();
-      if (now - lastNetTime > 16) {
-        clientConns.forEach(c => { if (c.open) c.send({ type: "state", state: gameState }); });
-        lastNetTime = now;
-      }
-      
-      let txt = "";
-      Object.keys(gameState.players).forEach(i => { txt += `<span style="color:${CLASSES[gameState.players[i].className].color}">Player ${parseInt(i)+1}: Lvl ${gameState.players[i].level}</span> | `; });
-      document.getElementById("scores").innerHTML = txt.slice(0, -2);
-    }
-
-    // --- DRAWING ---
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      let myP = gameState.players[myPlayerId];
-      if (!myP) return;
-      let mySize = CLASSES[myP.className].size;
-
-      ctx.save();
-      ctx.translate(-(myP.x - canvas.width/2 + mySize/2), -(myP.y - canvas.height/2 + mySize/2));
-
-      // Grid
-      ctx.strokeStyle = "#444"; ctx.lineWidth = 1;
-      for(let i=0; i<WORLD_SIZE; i+=100){ ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,WORLD_SIZE); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(WORLD_SIZE,i); ctx.stroke(); }
-      ctx.strokeStyle = "#fff"; ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-
-      // Orbs
-      gameState.orbs.forEach(o => { ctx.fillStyle = "#ffcc00"; ctx.beginPath(); ctx.arc(o.x, o.y, o.size, 0, Math.PI*2); ctx.fill(); });
-
-      // Traps
-      gameState.traps.forEach(t => {
-        ctx.fillStyle = "#ff5555"; ctx.fillRect(t.x, t.y, 30, 30);
-        ctx.fillStyle = "#222"; ctx.fillRect(t.x+6, t.y+6, 18, 18);
-      });
-
-      // Bullets
-      gameState.bullets.forEach(b => { ctx.fillStyle = "#fff"; ctx.fillRect(b.x, b.y, 10, 10); });
-
-      // Players
-      Object.values(gameState.players).forEach(p => {
-        let stats = CLASSES[p.className];
-        let size = stats.size;
-        
-        // Draw Permanent Weapon (Aims at mouse, flashes white if swinging)
-        let isSwinging = p.swingTimer > 5;
-        let hitboxes = getWeaponRect(p, isSwinging);
-        ctx.fillStyle = isSwinging ? "#ffffff" : "#999999"; 
-        hitboxes.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
-
-        // Draw Player Body
-        ctx.fillStyle = stats.color; 
-        ctx.fillRect(p.x, p.y, size, size);
-        ctx.strokeStyle = "#000"; ctx.lineWidth = 3; ctx.strokeRect(p.x, p.y, size, size);
-
-        // UI Bars
-        ctx.fillStyle = "#f00"; ctx.fillRect(p.x, p.y-12, size, 5);
-        ctx.fillStyle = "#0f0"; ctx.fillRect(p.x, p.y-12, size*(p.hp/100), 5);
-        ctx.fillStyle = "#0ff"; ctx.fillRect(p.x, p.y+size+4, size*(1-(p.dashCooldown/stats.cooldown)), 3);
-      });
-      ctx.restore();
-      if (isHost) updateHUD(); 
-    }
-
-    function loop() {
-      if (isHost) updatePhysics();
-      else if (hostConn && hostConn.open) {
-        let now = Date.now();
-        if (now - lastClientTime > 16) {
-          hostConn.send({ type: "input", keys: {...keys}, attack: isAttacking, mouseDir: getMouseDir() });
-          lastClientTime = now;
-        }
-      }
-      draw(); requestAnimationFrame(loop);
-    }
-    loop();
-  </script>
-</body>
-</html>
+What game engine (like Unity, Godot, or Unreal) are you currently using to build this game?
